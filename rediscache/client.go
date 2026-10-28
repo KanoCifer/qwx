@@ -91,9 +91,12 @@ func (c *Cache) Ping(ctx context.Context) error {
 
 // Close 关闭连接池。
 //
-// 关闭后再调用读写方法会返回错误。Close 可重复调用。
+// 关闭后再调用读写方法会返回错误。Close 可重复调用，重复调用返回 nil。
 func (c *Cache) Close() error {
-	return c.client.Close()
+	if err := c.client.Close(); err != nil && !errors.Is(err, redis.ErrClosed) {
+		return err
+	}
+	return nil
 }
 
 // key 给 SDK 生成的键加前缀。

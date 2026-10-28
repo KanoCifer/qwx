@@ -3,6 +3,7 @@ package rediscache
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -162,6 +163,68 @@ func TestCacheConcurrent(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestCacheCloseIdempotent(t *testing.T) {
+	c, _ := newTestCache(t)
+
+	if err := c.Close(); err != nil {
+		t.Fatalf("first Close: %v", err)
+	}
+	// 重复关闭返回 nil，不把 go-redis 的 ErrClosed 抛给调用方。
+	if err := c.Close(); err != nil {
+		t.Errorf("second Close: %v, want nil", err)
+	}
+}
+
+func TestCacheRespectsContextDeadline(t *testing.T) {
+	c, err := New(Options{Addr: silentRedis(t)})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer func() { _ = c.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, _, err = c.Get(ctx, "k")
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("Get against a silent redis should fail")
+	}
+	// 默认读超时是 3s，ctx 到期就该返回。
+	if elapsed > 2*time.Second {
+		t.Errorf("Get took %s, want well under %s: ctx deadline was ignored", elapsed, DefaultReadTimeout)
+	}
+}
+
+// silentRedis 启动一个接受连接但永不回包的服务，用来测超时路径。
+func silentRedis(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	go func() {
+		var conns []net.Conn
+		defer func() {
+			for _, conn := range conns {
+				_ = conn.Close()
+			}
+		}()
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			// 握住连接不回数据，客户端只能等到超时。
+			conns = append(conns, conn)
+		}
+	}()
+	return ln.Addr().String()
 }
 
 func TestCacheImplementsQwxCache(t *testing.T) {

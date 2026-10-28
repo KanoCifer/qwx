@@ -17,6 +17,7 @@ func TestOptionsValidate(t *testing.T) {
 		{"空地址", Options{}, qwx.ErrInvalidConfig},
 		{"空白地址", Options{Addr: "  "}, qwx.ErrInvalidConfig},
 		{"负数 DB", Options{Addr: "127.0.0.1:6379", DB: -1}, qwx.ErrInvalidConfig},
+		{"负数 PoolSize", Options{Addr: "127.0.0.1:6379", PoolSize: -1}, qwx.ErrInvalidConfig},
 		{"正常", Options{Addr: "127.0.0.1:6379"}, nil},
 	}
 	for _, tt := range tests {
@@ -41,6 +42,18 @@ func TestNewInvalidOptions(t *testing.T) {
 	}
 }
 
+func TestNewNegativePoolSize(t *testing.T) {
+	// 负数 PoolSize 不能传给 go-redis：它拿这个值开 channel，会 panic。
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("New panicked: %v", r)
+		}
+	}()
+	if _, err := New(Options{Addr: "127.0.0.1:6379", PoolSize: -1}); !errors.Is(err, qwx.ErrInvalidConfig) {
+		t.Errorf("New with negative pool size = %v, want ErrInvalidConfig", err)
+	}
+}
+
 func TestOptionsToRedisDefaults(t *testing.T) {
 	// 留空的超时用默认值。
 	r := Options{Addr: "127.0.0.1:6379"}.toRedis()
@@ -52,6 +65,10 @@ func TestOptionsToRedisDefaults(t *testing.T) {
 	}
 	if r.WriteTimeout != DefaultWriteTimeout {
 		t.Errorf("WriteTimeout = %s, want %s", r.WriteTimeout, DefaultWriteTimeout)
+	}
+	// ctx 的截止时间必须参与 Redis I/O，否则请求会等满读超时。
+	if !r.ContextTimeoutEnabled {
+		t.Error("ContextTimeoutEnabled = false, want true")
 	}
 
 	// 显式给的值要保留。
