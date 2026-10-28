@@ -125,6 +125,9 @@ func (l Location) Coordinates() (lat, lon float64, err error) {
 // 这是和风天气接入最容易踩的坑：旧接口用 "经度,纬度" 查询参数，
 // 新接口是 {latitude}/{longitude} 路径参数。写反了上游回 400
 // invalidParams:["longitude","latitude"]，不会静默返回别处。
+//
+// 本方法只服务新一代（/weather/v1/*、/airquality/v1/*、/weatheralert/v1/*）。
+// 旧一代与 GeoAPI 用 [Location.Query]，那个形态是经度在前。
 func (l Location) Path() (latPart, lonPart string, err error) {
 	if !l.HasCoordinates() {
 		return "", "", fmt.Errorf("%w: location has no coordinates", ErrInvalidLocation)

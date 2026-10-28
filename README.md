@@ -29,7 +29,8 @@ go get github.com/KanoCifer/qwx
 
 | 包 | 覆盖的上游接口 |
 | --- | --- |
-| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、新一代共用基础类型 |
+| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、两代共用的请求结构 |
+| `qwx/v1` | 新一代跨端点族共用的基础类型（`Metadata`、`Value`） |
 | `qwx/v1/weather` | 新一代天气 `/weather/v1/*` |
 | `qwx/v1/airquality` | 新一代空气质量 `/airquality/v1/*` |
 | `qwx/v1/alert` | 新一代预警 `/weatheralert/v1/*` |

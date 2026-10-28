@@ -5,9 +5,10 @@
 //
 // # 分包
 //
-// 本包只放跨接口族共用的部分：基础客户端、认证、缓存、位置、错误与新一代
-// 基础类型。接口族按上游的代际拆成子包：
+// 本包只放跨接口族共用的部分：基础客户端、认证、缓存、位置、错误与两代
+// 共用的请求结构。接口族按上游的代际拆成子包：
 //
+//   - [github.com/KanoCifer/qwx/v1] —— 新一代跨端点族共用的基础类型
 //   - [github.com/KanoCifer/qwx/v1/weather] —— 新一代天气
 //   - [github.com/KanoCifer/qwx/v1/airquality] —— 新一代空气质量
 //   - [github.com/KanoCifer/qwx/v1/alert] —— 新一代预警
@@ -15,7 +16,9 @@
 //   - [github.com/KanoCifer/qwx/geo] —— GeoAPI（/geo/v2/*）
 //
 // 两代的字段形态、单位、时间基准、错误体与缓存键都不同，拆包是为了让它们
-// 不在同一处混用。
+// 不在同一处混用。新一代的基础类型（[github.com/KanoCifer/qwx/v1.Metadata]、
+// [github.com/KanoCifer/qwx/v1.Value]）放在新一代的包里，不在本包 ——
+// 旧一代与 GeoAPI 用不到它们。
 //
 // # 用法
 //

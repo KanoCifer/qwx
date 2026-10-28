@@ -6,6 +6,7 @@ import (
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/v1"
 )
 
 // 预警端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
@@ -123,7 +124,7 @@ type Color struct {
 // Result 是预警查询的结果。
 type Result struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Alerts 是预警列表。
 	//
 	// 没有预警时上游返回空列表（metadata.zeroResult 为 true）。

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/v1"
 )
 
 // 空气质量端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
@@ -59,7 +60,7 @@ type Index struct {
 	// Category 是等级描述，如 "Good"、"Excellent"。
 	Category string `json:"category"`
 	// Color 是等级对应的颜色。
-	Color qwx.Color `json:"color"`
+	Color Color `json:"color"`
 	// PrimaryPollutant 是首要污染物。可能是 nil（空气很好时无首要污染物）。
 	PrimaryPollutant *PollutantBrief `json:"primaryPollutant,omitempty"`
 	// Health 是健康建议。
@@ -101,7 +102,7 @@ type Pollutant struct {
 	// FullName 是全称。
 	FullName string `json:"fullName"`
 	// Concentration 是浓度值。
-	Concentration qwx.Value `json:"concentration"`
+	Concentration v1.Value `json:"concentration"`
 	// SubIndexes 是该污染物在各标准下的分指数。
 	SubIndexes []SubIndex `json:"subIndexes"`
 }
@@ -127,7 +128,7 @@ type Station struct {
 // Current 是实时空气质量。
 type Current struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Indexes 是各标准的 AQI 指数。
 	Indexes []Index `json:"indexes"`
 	// Pollutants 是各污染物的实测数据。
@@ -139,7 +140,7 @@ type Current struct {
 // DailyForecast 是逐日空气质量预报。
 type DailyForecast struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Days 是逐日预报。
 	Days []Day `json:"days"`
 }
@@ -159,7 +160,7 @@ type Day struct {
 // HourlyForecast 是逐小时空气质量预报。
 type HourlyForecast struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Hours 是逐小时预报。
 	Hours []Hour `json:"hours"`
 }
@@ -177,7 +178,21 @@ type Hour struct {
 // StationData 是单个监测站的污染物数据。
 type StationData struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Pollutants 是各污染物的实测数据。
 	Pollutants []Pollutant `json:"pollutants"`
+}
+
+// Color 是颜色。
+//
+// 只有空气质量接口用这个形状，预警的预警颜色带 code 字段，两者是不同类型。
+type Color struct {
+	// Red 是红通道。
+	Red int `json:"red"`
+	// Green 是绿通道。
+	Green int `json:"green"`
+	// Blue 是蓝通道。
+	Blue int `json:"blue"`
+	// Alpha 是透明度。
+	Alpha int `json:"alpha"`
 }

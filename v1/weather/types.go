@@ -6,6 +6,7 @@ import (
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/v1"
 )
 
 // 新一代预报接口的参数上限（官方文档口径）。
@@ -66,30 +67,105 @@ func (o Options) cacheSuffix() string {
 	return suffix
 }
 
+// Condition 是天气现象。
+type Condition struct {
+	// Text 是天气现象的文字描述，随 lang 变化。
+	Text string `json:"text"`
+	// Code 是天气现象代码，如 "100"（晴）、"300"（小雨）。
+	//
+	// 官方会新增代码，不要依赖枚举的完备性。
+	Code string `json:"code"`
+}
+
+// WindDirection 是风向。
+type WindDirection struct {
+	// Degree 是风向角度（0~360，0 为北）。
+	Degree float64 `json:"degree"`
+	// Compass 是 16 方位英文代码（如 "sw"、"wnw"），不是中文。
+	Compass string `json:"compass"`
+}
+
+// Wind 是风速与风向。
+type Wind struct {
+	// Direction 是风向。
+	Direction WindDirection `json:"direction"`
+	// Speed 是风速。
+	Speed v1.Value `json:"speed"`
+	// Scale 是风力等级（蒲福风级）。
+	Scale float64 `json:"scale"`
+}
+
+// WindGust 是阵风。
+type WindGust struct {
+	// Value 是阵风风速。
+	Value float64 `json:"value"`
+	// Unit 是单位。
+	Unit string `json:"unit"`
+}
+
+// Precipitation 是降水情况。
+type Precipitation struct {
+	// Amount 是降水量。
+	Amount v1.Value `json:"amount"`
+	// Intensity 是降水强度。
+	Intensity v1.Value `json:"intensity"`
+	// Probability 是降水概率（0~1）。
+	//
+	// 实时天气接口没有这个字段，逐小时预报才有。用指针区分「没有」
+	// 与「概率为 0」。
+	Probability *float64 `json:"probability,omitempty"`
+	// Type 是降水类型："none" / "rain" / "snow"。
+	Type string `json:"type"`
+}
+
+// Pressure 是气压。
+type Pressure struct {
+	// Value 是气压值。
+	Value float64 `json:"value"`
+	// Unit 是单位（hPa）。
+	Unit string `json:"unit"`
+}
+
+// Visibility 是能见度。
+type Visibility struct {
+	// Value 是能见度值。
+	Value float64 `json:"value"`
+	// Unit 是单位（m）。
+	Unit string `json:"unit"`
+}
+
+// DewPoint 是露点温度。
+type DewPoint struct {
+	// Value 是露点温度。
+	Value float64 `json:"value"`
+	// Unit 是单位（°C）。
+	Unit string `json:"unit"`
+}
+
 // CurrentWeather 是实时天气。
 type CurrentWeather struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Condition 是天气现象。
-	Condition qwx.Condition `json:"condition"`
+	Condition Condition `json:"condition"`
 	// Temperature 是气温。
-	Temperature qwx.Value `json:"temperature"`
+	Temperature v1.Value `json:"temperature"`
 	// FeelsLike 是体感温度。
-	FeelsLike qwx.Value `json:"feelsLike"`
+	FeelsLike v1.Value `json:"feelsLike"`
 	// Humidity 是相对湿度，**0~1 的比例**（不是百分数）。
 	Humidity float64 `json:"humidity"`
 	// Wind 是风。
-	Wind qwx.Wind `json:"wind"`
+	Wind Wind `json:"wind"`
 	// WindGust 是阵风。
-	WindGust qwx.WindGust `json:"windGust"`
+	WindGust WindGust `json:"windGust"`
 	// Precipitation 是降水情况。
-	Precipitation qwx.Precipitation `json:"precipitation"`
+	Precipitation Precipitation `json:"precipitation"`
 	// Pressure 是气压。
-	Pressure qwx.Pressure `json:"pressure"`
+	Pressure Pressure `json:"pressure"`
 	// Visibility 是能见度。
-	Visibility qwx.Visibility `json:"visibility"`
+	Visibility Visibility `json:"visibility"`
 	// DewPoint 是露点。
-	DewPoint qwx.DewPoint `json:"dewPoint"`
+	DewPoint DewPoint `json:"dewPoint"`
 	// CloudCover 是云量，**0~1 的比例**。
 	CloudCover float64 `json:"cloudCover"`
 	// UVIndex 是紫外线指数。
@@ -99,7 +175,7 @@ type CurrentWeather struct {
 // HourlyForecast 是逐小时预报。
 type HourlyForecast struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Hours 是逐小时预报列表。
 	//
 	// 条数由请求的 hours 决定，但上游可能给得更少 —— 不要假设长度。
@@ -111,25 +187,25 @@ type Hourly struct {
 	// ForecastTime 是预报时刻。
 	ForecastTime string `json:"forecastTime"`
 	// Condition 是天气现象。
-	Condition qwx.Condition `json:"condition"`
+	Condition Condition `json:"condition"`
 	// Temperature 是气温。
-	Temperature qwx.Value `json:"temperature"`
+	Temperature v1.Value `json:"temperature"`
 	// FeelsLike 是体感温度。
-	FeelsLike qwx.Value `json:"feelsLike"`
+	FeelsLike v1.Value `json:"feelsLike"`
 	// Humidity 是相对湿度，0~1 的比例。
 	Humidity float64 `json:"humidity"`
 	// Wind 是风。
-	Wind qwx.Wind `json:"wind"`
+	Wind Wind `json:"wind"`
 	// WindGust 是阵风。
-	WindGust qwx.WindGust `json:"windGust"`
+	WindGust WindGust `json:"windGust"`
 	// Precipitation 是降水情况，含概率。
-	Precipitation qwx.Precipitation `json:"precipitation"`
+	Precipitation Precipitation `json:"precipitation"`
 	// Pressure 是气压。
-	Pressure qwx.Pressure `json:"pressure"`
+	Pressure Pressure `json:"pressure"`
 	// Visibility 是能见度。
-	Visibility qwx.Visibility `json:"visibility"`
+	Visibility Visibility `json:"visibility"`
 	// DewPoint 是露点。
-	DewPoint qwx.DewPoint `json:"dewPoint"`
+	DewPoint DewPoint `json:"dewPoint"`
 	// CloudCover 是云量，0~1 的比例。
 	CloudCover float64 `json:"cloudCover"`
 	// UVIndex 是紫外线指数。
@@ -139,7 +215,7 @@ type Hourly struct {
 // DailyForecast 是逐日预报。
 type DailyForecast struct {
 	// Metadata 是元数据。
-	Metadata qwx.Metadata `json:"metadata"`
+	Metadata v1.Metadata `json:"metadata"`
 	// Days 是逐日预报列表。
 	Days []Daily `json:"days"`
 }
@@ -155,11 +231,11 @@ type Daily struct {
 	// 高纬度地区可能没有日出日落 —— 该字段可能缺失。
 	Astro *Astro `json:"astro,omitempty"`
 	// TemperatureMax 是最高气温。
-	TemperatureMax qwx.Value `json:"temperatureMax"`
+	TemperatureMax v1.Value `json:"temperatureMax"`
 	// TemperatureMin 是最低气温。
-	TemperatureMin qwx.Value `json:"temperatureMin"`
+	TemperatureMin v1.Value `json:"temperatureMin"`
 	// TemperatureAvg 是平均气温。
-	TemperatureAvg qwx.Value `json:"temperatureAvg"`
+	TemperatureAvg v1.Value `json:"temperatureAvg"`
 	// UVIndexMax 是最大紫外线指数。
 	UVIndexMax float64 `json:"uvIndexMax"`
 	// Daytime 是白天时段（v7 时代是一天一条，新一代拆成白天/夜间两段）。
@@ -175,17 +251,17 @@ type DayNight struct {
 	// ForecastEndTime 是时段结束时刻。
 	ForecastEndTime string `json:"forecastEndTime"`
 	// Condition 是天气现象。
-	Condition qwx.Condition `json:"condition"`
+	Condition Condition `json:"condition"`
 	// TemperatureMax 是最高气温。
-	TemperatureMax qwx.Value `json:"temperatureMax"`
+	TemperatureMax v1.Value `json:"temperatureMax"`
 	// TemperatureMin 是最低气温。
-	TemperatureMin qwx.Value `json:"temperatureMin"`
+	TemperatureMin v1.Value `json:"temperatureMin"`
 	// Wind 是风。
-	Wind qwx.Wind `json:"wind"`
+	Wind Wind `json:"wind"`
 	// WindGust 是阵风。
-	WindGust qwx.WindGust `json:"windGust"`
+	WindGust WindGust `json:"windGust"`
 	// Precipitation 是降水情况。
-	Precipitation qwx.Precipitation `json:"precipitation"`
+	Precipitation Precipitation `json:"precipitation"`
 	// Humidity 是相对湿度，0~1 的比例。
 	Humidity float64 `json:"humidity"`
 	// CloudCover 是云量，0~1 的比例。
