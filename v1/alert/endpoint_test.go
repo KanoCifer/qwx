@@ -23,8 +23,8 @@ func TestCurrentReportsEndpointAndTTL(t *testing.T) {
 	}
 
 	req := d.Last(t)
-	if req.Endpoint != alert.EndpointCurrent {
-		t.Errorf("endpoint = %q, want %q", req.Endpoint, alert.EndpointCurrent)
+	if req.Endpoint != alert.Endpoint {
+		t.Errorf("endpoint = %q, want %q", req.Endpoint, alert.Endpoint)
 	}
 	if req.TTL != 5*time.Minute {
 		t.Errorf("ttl = %v, want 5m", req.TTL)

@@ -21,7 +21,8 @@ import (
 	"github.com/KanoCifer/qwx/v1/airquality"
 	"github.com/KanoCifer/qwx/v1/alert"
 	"github.com/KanoCifer/qwx/v1/weather"
-	"github.com/KanoCifer/qwx/v7"
+	"github.com/KanoCifer/qwx/v7/indices"
+	"github.com/KanoCifer/qwx/v7/minutely"
 )
 
 func liveClient(t *testing.T) *qwx.Client {
@@ -54,7 +55,8 @@ func TestLive(t *testing.T) {
 	w := weather.New(c)
 	aq := airquality.New(c)
 	al := alert.New(c)
-	old := v7.New(c)
+	idx := indices.New(c)
+	mi := minutely.New(c)
 	g := geo.New(c)
 
 	t.Run("Current", func(t *testing.T) {
@@ -92,7 +94,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Indices", func(t *testing.T) {
-		got, err := old.Indices(ctx, loc, v7.IndicesTypeFishing, 1, "zh")
+		got, err := idx.Indices(ctx, loc, indices.TypeFishing, 1, "zh")
 		if err != nil {
 			t.Fatalf("Indices: %v", err)
 		}
@@ -102,7 +104,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Minutely", func(t *testing.T) {
-		got, err := old.Minutely(ctx, loc, "zh")
+		got, err := mi.Minutely(ctx, loc, "zh")
 		if err != nil {
 			t.Fatalf("Minutely: %v", err)
 		}

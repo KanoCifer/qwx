@@ -12,7 +12,7 @@ Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，�
 
 - **核心接口全覆盖**：GeoAPI 城市/POI 检索、天气预报（新一代 `/weather/v1/*`）、
   空气质量、预警、海洋潮汐、生活指数、分钟级降水预报
-- **按代分包**：新一代、旧一代、GeoAPI 各自成包，字段形态与缓存键不互相污染
+- **按资源族分包**：一个包 = 一个上游资源族，字段形态与缓存键不互相污染
 - **两种认证**：JWT（Ed25519 签名，推荐）与 API KEY
 - **零依赖**：只用标准库，`go.mod` 没有 `require`
 - **缓存可插拔**：定义 `Cache` 接口，Redis / 内存 / 自定义都行
@@ -33,9 +33,14 @@ go get github.com/KanoCifer/qwx
 | `qwx/v1` | 新一代跨端点族共用的基础类型（`Metadata`、`Value`） |
 | `qwx/v1/weather` | 新一代天气 `/weather/v1/*` |
 | `qwx/v1/airquality` | 新一代空气质量 `/airquality/v1/*` |
-| `qwx/v1/alert` | 新一代预警 `/weatheralert/v1/*` |
-| `qwx/v7` | 旧一代 `/v7/*` |
+| `qwx/v1/alert` | 预警 `/weatheralert/v1/*` |
+| `qwx/v7/ocean` | 旧一代潮汐 `/v7/ocean/tide` |
+| `qwx/v7/indices` | 旧一代生活指数 `/v7/indices/*` |
+| `qwx/v7/minutely` | 旧一代分钟级降水 `/v7/minutely/*` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
+
+一个包 = 一个上游资源族。`geo` 是唯一的例外：它的四个检索端点共享同一个地点
+类型，拆开会让该类型失去归属。
 
 ## 快速开始
 
@@ -131,7 +136,8 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 ```
 
 端点常量在各端点包里（`weather.EndpointCurrent`、`geo.EndpointCity` 等）。
-单次请求要临时绕过缓存，用 `qwx.WithTTLOverride(ctx, 0)`。
+单端点包只导出一个端点时，名字就是 `Endpoint`（`alert.Endpoint`、
+`ocean.Endpoint`）。单次请求要临时绕过缓存，用 `qwx.WithTTLOverride(ctx, 0)`。
 
 > 改 TTL 不改缓存键：已写入的旧条目按写入时的 TTL 到期，想立刻生效要换缓存实例或手动清键。
 
@@ -151,10 +157,9 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 | `v1/airquality` | `Hourly` | `GET /airquality/v1/hourly/{lat}/{lon}` |
 | `v1/airquality` | `Station` | `GET /airquality/v1/stations/{locationId}` |
 | `v1/alert` | `Current` | `GET /weatheralert/v1/current/{lat}/{lon}` |
-| `v7` | `Warnings` | `GET /v7/warning/now` |
-| `v7` | `Tide` | `GET /v7/ocean/tide` |
-| `v7` | `Indices` | `GET /v7/indices/{days}d` |
-| `v7` | `Minutely` | `GET /v7/minutely/5m` |
+| `v7/ocean` | `Tide` | `GET /v7/ocean/tide` |
+| `v7/indices` | `Indices` | `GET /v7/indices/{days}d` |
+| `v7/minutely` | `Minutely` | `GET /v7/minutely/5m` |
 
 `Tide`、`Indices`、`Minutely` 至今只有 v7 版本 —— 实测 `/weather/v1/indices/*`、
 `/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
@@ -178,8 +183,7 @@ LocationID 要先用 `geo` 包的 `LookupCity` 换成坐标。
 **必须传 `localTime=true`。** 新一代默认给 UTC（`"2026-10-21T05:00Z"`），
 不传本地时间会整整差 8 小时。
 
-**湿度与云量是比例不是百分数。** 新一代的 `humidity: 0.69` 是 69%，
-v7 的 `"26"` 才是百分数。
+**湿度与云量是比例不是百分数。** 新一代的 `humidity: 0.69` 是 69%。
 
 **潮汐日期要用站点当地当天。** 潮汐窗口下界是当地当天，用 UTC 日期会在
 北京时间 00:00–08:00 要到"昨天"，上游回 400。

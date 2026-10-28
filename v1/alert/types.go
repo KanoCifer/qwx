@@ -11,8 +11,8 @@ import (
 
 // 预警端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
 const (
-	// EndpointCurrent 是预警实况端点。
-	EndpointCurrent = qwx.Endpoint("weatheralert/v1/current")
+	// Endpoint 是预警实况端点。
+	Endpoint = qwx.Endpoint("weatheralert/v1/current")
 )
 
 // 预警接口的默认缓存时长：上游 5 分钟更新一次预警。

@@ -1,7 +1,7 @@
-// Package alert 提供新一代预警接口（/weatheralert/v1/*）。
+// Package alert 提供预警接口（/weatheralert/v1/*）。
 //
 // 这一代只认坐标：位置必须是经纬度路径参数，LocationID 会被上游拒绝。
-// 旧一代预警在 qwx/v7 包。
+// 要按 LocationID 或地名查预警，先用 geo 包的 LookupCity 换坐标。
 package alert
 
 import (
@@ -34,7 +34,7 @@ func New(base qwx.Doer) *Client {
 //
 // 缓存键：`qwx:alert:v1:<lat>,<lon>` 加查询参数后缀。
 //
-// 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointCurrent] 覆盖。
+// 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*Result, error) {
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -45,7 +45,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 		Method:   "GET",
 		Path:     "/weatheralert/v1/current/" + lat + "/" + lon,
 		Query:    opts.params(),
-		Endpoint: EndpointCurrent,
+		Endpoint: Endpoint,
 		CacheKey: "qwx:alert:v1:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + opts.cacheSuffix(),
 		TTL:      cacheTTL,
 	}, &out)

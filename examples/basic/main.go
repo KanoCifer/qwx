@@ -15,7 +15,7 @@ import (
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/geo"
 	"github.com/KanoCifer/qwx/v1/weather"
-	"github.com/KanoCifer/qwx/v7"
+	"github.com/KanoCifer/qwx/v7/indices"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	// 各接口族用基础客户端构造自己的服务客户端。
 	w := weather.New(base)
 	g := geo.New(base)
-	old := v7.New(base)
+	idx := indices.New(base)
 
 	ctx := context.Background()
 
@@ -97,11 +97,11 @@ func main() {
 	}
 
 	// 5. 钓鱼指数（旧一代接口）。
-	indices, err := old.Indices(ctx, loc, v7.IndicesTypeFishing, 1, "zh")
+	idxResult, err := idx.Indices(ctx, loc, indices.TypeFishing, 1, "zh")
 	if err != nil {
 		log.Fatalf("生活指数查询失败: %v", err)
 	}
-	for _, idx := range indices.Daily {
-		fmt.Printf("  %s %s：%s\n", idx.Name, idx.Category, idx.Text)
+	for _, item := range idxResult.Daily {
+		fmt.Printf("  %s %s：%s\n", item.Name, item.Category, item.Text)
 	}
 }
