@@ -158,6 +158,10 @@ func normalizeAPIHost(raw string) (string, error) {
 // 到具体的 sentinel error，并尽可能解析出上游的错误细节。
 //
 // out 为 nil 时只取原始响应体。
+//
+// 调用方取消或超时时，错误同时匹配 ctx 的错误与 [ErrUpstreamUnavailable]，
+// 传输层错误保留在里面（[*url.Error]）：日志剥掉查询串后仍留着 path，能
+// 定位是哪个请求断的。
 func (c *Client) Do(ctx context.Context, req Request, out any) error {
 	ttl := c.resolveTTL(ctx, req)
 	useCache := c.cache != nil && req.CacheKey != "" && ttl > 0
@@ -298,7 +302,7 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 				if resp != nil {
 					resp.Body.Close()
 				}
-				return nil, ctx.Err()
+				return nil, cancelError(ctx.Err(), err)
 			}
 			// 最后一轮仍是失败：把响应交回调用方，由它按状态码归类
 			// （5xx 归上游不可用，429 归配额超限）。网络错误时 resp 为 nil。
@@ -321,6 +325,17 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 	}
 
 	return resp, err
+}
+
+// cancelError 把调用方取消与传输错误合成一个错误。
+func cancelError(ctxErr, transportErr error) error {
+	if transportErr == nil {
+		return ctxErr
+	}
+	if errors.Is(transportErr, ctxErr) {
+		return transportErr
+	}
+	return fmt.Errorf("%w: %w", ctxErr, transportErr)
 }
 
 // nextRetryDelay 算出下一次重试要等多久。

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -178,6 +180,38 @@ func TestDoReturnsErrorWhenContextCanceledDuringRetry(t *testing.T) {
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("error = %v, want context.Canceled", err)
+	}
+}
+
+func TestDoKeepsTransportErrorWhenContextCanceled(t *testing.T) {
+	// ctx 已取消时不能只返回 context.Canceled：传输错误里的 URL 带着请求
+	// 路径，丢了就没法定位是哪个请求断的，日志里也就只剩一句"context
+	// canceled"。
+	auth, err := qwx.NewAPIKeyAuth("k")
+	if err != nil {
+		t.Fatalf("NewAPIKeyAuth: %v", err)
+	}
+	c, err := qwx.NewClient(auth, "127.0.0.1:1")
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = c.Do(ctx, qwx.Request{Path: "/geo/v2/city/lookup"}, nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("error = %v, want context.Canceled", err)
+	}
+	var ue *url.Error
+	if !errors.As(err, &ue) {
+		t.Fatalf("transport error lost: %T", err)
+	}
+	if !strings.Contains(ue.URL, "/geo/v2/city/lookup") {
+		t.Errorf("url = %q, want the request path", ue.URL)
 	}
 }
 
