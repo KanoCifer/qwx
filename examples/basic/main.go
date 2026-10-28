@@ -1,0 +1,102 @@
+// Package main 演示 qwx 的基本用法。
+//
+// 运行前需要设置环境变量：
+//
+//	QWEATHER_API_KEY   你的 API KEY（或改用 JWT，见 README）
+//	QWEATHER_BASE_URL  可选，专属 API Host
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/KanoCifer/qwx"
+)
+
+func main() {
+	key := os.Getenv("QWEATHER_API_KEY")
+	if key == "" {
+		log.Fatal("请设置 QWEATHER_API_KEY")
+	}
+
+	auth, err := qwx.NewAPIKeyAuth(key)
+	if err != nil {
+		log.Fatalf("认证初始化失败: %v", err)
+	}
+
+	opts := []qwx.Option{
+		// 生产环境建议注入 Redis 等共享缓存；开发时用内置的内存缓存即可。
+		qwx.WithCache(qwx.NewMemoryCache()),
+	}
+	if host := os.Getenv("QWEATHER_BASE_URL"); host != "" {
+		opts = append(opts, qwx.WithBaseURL(host))
+	}
+
+	client, err := qwx.NewClient(auth, opts...)
+	if err != nil {
+		log.Fatalf("客户端初始化失败: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// 1. 用坐标查实时天气。
+	loc, err := qwx.ParseLocation("116.41,39.92")
+	if err != nil {
+		log.Fatalf("位置解析失败: %v", err)
+	}
+
+	current, err := client.Current(ctx, loc, qwx.WeatherOptions{Lang: "zh", LocalTime: true})
+	if err != nil {
+		log.Fatalf("实时天气查询失败: %v", err)
+	}
+	fmt.Printf("实时天气：%s %v%s，湿度 %.0f%%\n",
+		current.Condition.Text,
+		current.Temperature.Value,
+		current.Temperature.Unit,
+		current.Humidity*100,
+	)
+
+	// 2. 逐小时预报。
+	hourly, err := client.Hourly(ctx, loc, 24, qwx.WeatherOptions{Lang: "zh", LocalTime: true})
+	if err != nil {
+		log.Fatalf("逐小时预报查询失败: %v", err)
+	}
+	fmt.Printf("逐小时预报 %d 条\n", len(hourly.Hours))
+
+	// 3. 逐日预报。
+	daily, err := client.Daily(ctx, loc, 3, qwx.WeatherOptions{Lang: "zh", LocalTime: true})
+	if err != nil {
+		log.Fatalf("逐日预报查询失败: %v", err)
+	}
+	for _, d := range daily.Days {
+		date := d.ForecastStartTime
+		if len(date) >= 10 {
+			date = date[:10]
+		}
+		fmt.Printf("  %s 最高 %v%s / 最低 %v%s\n",
+			date,
+			d.TemperatureMax.Value, d.TemperatureMax.Unit,
+			d.TemperatureMin.Value, d.TemperatureMin.Unit,
+		)
+	}
+
+	// 4. 城市检索（认地名）。
+	cities, err := client.LookupCity(ctx, qwx.Location{Name: "杭州"}, qwx.GeoOptions{Lang: "zh"})
+	if err != nil {
+		log.Fatalf("城市检索失败: %v", err)
+	}
+	for _, city := range cities.Locations {
+		fmt.Printf("城市：%s（%s）\n", city.DisplayName(), city.ID)
+	}
+
+	// 5. 钓鱼指数。
+	indices, err := client.Indices(ctx, loc, qwx.IndicesTypeFishing, 1, "zh")
+	if err != nil {
+		log.Fatalf("生活指数查询失败: %v", err)
+	}
+	for _, idx := range indices.Daily {
+		fmt.Printf("  %s %s：%s\n", idx.Name, idx.Category, idx.Text)
+	}
+}

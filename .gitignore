@@ -1,0 +1,14 @@
+# 编译产物
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 测试产物
+coverage.out
+*.test
+
+# 编辑器
+.idea/
+.vscode/
+.DS_Store
