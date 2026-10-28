@@ -93,13 +93,8 @@ func WithClock(now func() time.Time) Option {
 
 // NewClient 构造 [Client]。
 //
-// auth 为必填 —— 没有认证方式所有请求都会被上游拒绝。apiHost 同样是必填：
-// 控制台「设置」页分配的专属 API Host，形如 "abcxyz.qweatherapi.com"。
-// 公共域名（api.qweather.com、devapi.qweather.com、geoapi.qweather.com）
-// 自 2026 年起陆续停服，所以这里没有默认值。
-//
-// apiHost 可以只给 host（自动补 "https://"），也可以带 scheme；尾部斜杠会被去掉。
-// 空串或缺 host 段返回 [ErrInvalidConfig]。
+// auth，apiHost 为必填
+// https://dev.qweather.com/docs/start/ QWeather官方文档
 //
 // cache 可为 nil。
 func NewClient(auth Auth, apiHost string, opts ...Option) (*Client, error) {
