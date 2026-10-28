@@ -18,7 +18,11 @@ func TestLookupCity(t *testing.T) {
 	    "tz": "Asia/Shanghai", "utcOffset": "+08:00", "isDst": "0",
 	    "type": "city", "rank": "35",
 	    "fxLink": "https://www.qweather.com/weather/dongcheng-101011600.html"
-	  }]
+	  }],
+	  "refer": {
+	    "sources": ["https://developer.qweather.com/attribution.html"],
+	    "license": ["QWeather Developers License"]
+	  }
 	}`
 	fs := testutil.NewFakeServer(t, body)
 	c := geo.New(testutil.NewClient(t, fs))
@@ -46,6 +50,10 @@ func TestLookupCity(t *testing.T) {
 	// name=区县、adm2=城市，拼出来是"城市+区县"。
 	if got := l.DisplayName(); got != "北京东城" {
 		t.Errorf("DisplayName = %q, want 北京东城", got)
+	}
+	// 展示 GeoAPI 数据时要一并展示来源与许可声明。
+	if len(got.Refer.Sources) != 1 || len(got.Refer.License) != 1 {
+		t.Errorf("refer = %+v, want 1 source and 1 license", got.Refer)
 	}
 }
 

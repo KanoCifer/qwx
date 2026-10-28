@@ -138,12 +138,25 @@ func (p Place) Coordinates() (lat, lon float64, err error) {
 	return loc.Lat, loc.Lon, nil
 }
 
+// Refer 是数据来源与许可信息。
+//
+// GeoAPI 在结果里带一个 refer 对象，说明数据来源与授权方式。展示
+// GeoAPI 数据时需要一并展示这些信息。
+type Refer struct {
+	// Sources 是原始数据来源，或数据源说明。上游可能给空。
+	Sources []string `json:"sources"`
+	// License 是数据许可或版权声明。上游可能给空。
+	License []string `json:"license"`
+}
+
 // CityResult 是城市检索的结果。
 type CityResult struct {
 	// Code 是上游状态码，"200" 为成功。
 	Code string `json:"code"`
 	// Locations 是匹配到的地点。
 	Locations []Place `json:"location"`
+	// Refer 是数据来源与许可信息。
+	Refer Refer `json:"refer"`
 }
 
 // POIResult 是 POI 检索的结果。
@@ -152,6 +165,8 @@ type POIResult struct {
 	Code string `json:"code"`
 	// POIs 是匹配到的 POI。
 	POIs []Place `json:"poi"`
+	// Refer 是数据来源与许可信息。
+	Refer Refer `json:"refer"`
 }
 
 // RangeResult 是 POI 范围检索的结果。
@@ -160,6 +175,8 @@ type RangeResult struct {
 	Code string `json:"code"`
 	// POIs 是范围内的 POI。
 	POIs []Place `json:"poi"`
+	// Refer 是数据来源与许可信息。
+	Refer Refer `json:"refer"`
 }
 
 // TopCityResult 是热门城市检索的结果。
@@ -168,4 +185,6 @@ type TopCityResult struct {
 	Code string `json:"code"`
 	// Cities 是热门城市列表。
 	Cities []Place `json:"topCityList"`
+	// Refer 是数据来源与许可信息。
+	Refer Refer `json:"refer"`
 }
