@@ -70,6 +70,13 @@ func TestCurrentWeather(t *testing.T) {
 	if got.Precipitation.Probability != nil {
 		t.Errorf("probability = %v, want nil", *got.Precipitation.Probability)
 	}
+	// 实时天气有降水强度。
+	if got.Precipitation.Intensity == nil {
+		t.Fatal("intensity = nil, want 0 mm/h")
+	}
+	if got.Precipitation.Intensity.Unit != "mm/h" {
+		t.Errorf("intensity unit = %q, want mm/h", got.Precipitation.Intensity.Unit)
+	}
 }
 
 func TestCurrentRejectsLocationID(t *testing.T) {
@@ -209,6 +216,13 @@ func TestDailyDayNightShape(t *testing.T) {
 	// 概率为 0 与没有该字段是两回事：nighttime 给了 0，不能是 nil。
 	if day.Nighttime.Precipitation.Probability == nil {
 		t.Fatal("nighttime probability = nil, want 0")
+	}
+	// 逐日预报的白天/夜间时段上游不给降水强度，不能读出零值强度。
+	if day.Daytime.Precipitation.Intensity != nil {
+		t.Errorf("daytime intensity = %+v, want nil", *day.Daytime.Precipitation.Intensity)
+	}
+	if day.Nighttime.Precipitation.Intensity != nil {
+		t.Errorf("nighttime intensity = %+v, want nil", *day.Nighttime.Precipitation.Intensity)
 	}
 }
 

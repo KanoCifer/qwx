@@ -658,43 +658,7 @@ w := weather.New(fakeDoer{})
 `Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、
 `/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
 
-## 几个容易踩的坑
-
-**API Host 必传，不能用公共域名。** 控制台「设置」页里的专属 Host 形如
-`abcxyz.qweatherapi.com`，`NewClient(auth, host)` 的第二个参数就是它。
-公共域名 `devapi.qweather.com`（2026-01 停服）、`api.qweather.com`、
-`geoapi.qweather.com`（2026-06 停服）会陆续不可用。
-注意 GeoAPI 在专属 Host 下的路径是 `/geo/v2/*`，与旧公共域名的 `/v2/*` 不同，
-SDK 已按新路径发请求。
-
-**坐标顺序相反。** 新一代接口用路径参数 `{纬度}/{经度}`，v7 与 GeoAPI 用查询参数
-`"经度,纬度"`。写反了上游回 400 `invalidParams:["longitude","latitude"]`，
-不会静默返回别处。SDK 里 `Location.Path()` 给新一代用，`Location.Query()` 给旧的用。
-
-**新一代只认坐标。** `/weather/v1/current/101010100` 回 404（body 为空）。
-LocationID 要先用 `geo` 包的 `LookupCity` 换成坐标。
-
-**必须传 `localTime=true`。** 新一代默认给 UTC（`"2026-10-21T05:00Z"`），
-不传本地时间会整整差 8 小时。
-
-**湿度与云量是比例不是百分数。** 新一代的 `humidity: 0.69` 是 69%。
-
-**潮汐日期要用站点当地当天。** 潮汐窗口下界是当地当天，用 UTC 日期会在
-北京时间凌晨 8 点前算成「昨天」，上游回 400。
-
-**分钟级降水只认坐标、只覆盖中国。** `location` 必须是 `"经度,纬度"`，
-不认 LocationID 也不认地名。
-
-**生活指数只支持 1 天与 3 天。** 传 2 天、7 天、30 天全部 404，裸经度（如
-`121.47`）上游回 400。
-
-**POI 检索无数据时回 400 而不是空列表。** 上游在该类型附近找不到 POI 时
-返回 400 `No Such Location`：内陆城市（如北京）查 TSTA（潮汐站）与 CSTA
-（观测站）都会 400，沿海城市（如舟山）才查得到。调用方要按错误处理，
-不能假设「查不到就是空」。
-
-**Redis 缓存是独立模块，不是核心包的一部分。** `rediscache` 自带 `go.mod`
-依赖 go-redis，核心包保持零依赖。引入方式：
+## qwx 封装的redis缓存
 
 ```bash
 go get github.com/KanoCifer/qwx/rediscache

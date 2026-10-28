@@ -93,7 +93,10 @@ type Precipitation struct {
 	// Amount 是降水量。
 	Amount v1.Value `json:"amount"`
 	// Intensity 是降水强度。
-	Intensity v1.Value `json:"intensity"`
+	//
+	// 实况与逐时预报有这个字段，逐日预报的白天/夜间时段没有 ——
+	// 用指针区分「没有」与「强度为 0」。
+	Intensity *v1.Value `json:"intensity,omitempty"`
 	// Probability 是降水概率（0~1）。
 	//
 	// 实时天气接口没有这个字段，逐小时预报与逐日预报的白天/夜间时段
