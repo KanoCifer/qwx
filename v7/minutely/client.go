@@ -43,14 +43,19 @@ func New(base qwx.Doer) *Client {
 //  2. **只覆盖中国区域**：境外坐标上游没有数据。
 //  3. **粒度是 5 分钟**：未来 2 小时共 24 条，上游每 5 分钟更新一次。
 //
+// lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:minutely:<lon>,<lat>` 加语言后缀。TTL 与上游 5 分钟的更新节奏对齐。
 //
 // 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
-func (c *Client) Minutely(ctx context.Context, loc qwx.Location, lang string) (*Result, error) {
+func (c *Client) Minutely(ctx context.Context, loc qwx.Location, lang qwx.Lang) (*Result, error) {
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: minutely forecast requires coordinates", qwx.ErrInvalidLocation)
 	}
-	p := cachekey.Params{Lang: lang}
+	if err := lang.Validate(); err != nil {
+		return nil, err
+	}
+	p := cachekey.Params{Lang: lang.API}
 	q := p.Query()
 	q.Set("location", loc.Query())
 

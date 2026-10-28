@@ -46,11 +46,20 @@
 //		return err
 //	}
 //	w := weather.New(base)
-//	cur, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
+//	cur, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 //
 // API Host 形如 abcxyz.qweatherapi.com，在控制台「设置」页查看。公共域名
 // （devapi.qweather.com、api.qweather.com、geoapi.qweather.com）自 2026 年起
 // 陆续停服，SDK 不提供默认值。只给 host 时自动补 "https://"。
+//
+// # 语言
+//
+// 上游用 lang 查询参数切换返回的语言，语言参数是 [Lang]。SDK 内置官方
+// 「多语言」页列出的 31 种语言（[LangZH]、[LangZHHant]、[LangEN] …），
+// 完整列表在 [Langs]。
+//
+// 语言留空（零值 [Lang]）用上游默认：所在国家或地区的官方语言，没有官方
+// 语言时回退到英语。按代码反查语言用 [LookupLang]。
 //
 // # 认证
 //

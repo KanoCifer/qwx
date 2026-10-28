@@ -37,10 +37,15 @@ func New(base qwx.Doer) *Client {
 // 上游直接 404（body 为空）。用 LocationID 时先用 geo 包的 LookupCity
 // 换成坐标。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:v1:current:<lat>,<lon>` 加查询参数后缀。
 //
 // 默认 TTL 10 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointCurrent] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*CurrentWeather, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	lat, lon, err := loc.Path()
 	if err != nil {
 		return nil, err
@@ -76,12 +81,17 @@ func currentCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // hours 取值 1~240，超出范围返回 [qwx.ErrInvalidParameter]，不打上游。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:v1:hourly:<lat>,<lon>:h<hours>` 加查询参数后缀。
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointHourly] 覆盖。
 func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts Options) (*HourlyForecast, error) {
 	if hours < 1 || hours > MaxHourlyHours {
 		return nil, fmt.Errorf("%w: hours %d out of range [1,%d]", qwx.ErrInvalidParameter, hours, MaxHourlyHours)
+	}
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
 	}
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -124,12 +134,17 @@ func hourlyCacheKey(loc qwx.Location, hours int, p cachekey.Params) string {
 //
 // days 取值 1~10，超出范围返回 [qwx.ErrInvalidParameter]，不打上游。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:v1:daily:<lat>,<lon>:d<days>` 加查询参数后缀。
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointDaily] 覆盖。
 func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Options) (*DailyForecast, error) {
 	if days < 1 || days > MaxDailyDays {
 		return nil, fmt.Errorf("%w: days %d out of range [1,%d]", qwx.ErrInvalidParameter, days, MaxDailyDays)
+	}
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
 	}
 	lat, lon, err := loc.Path()
 	if err != nil {

@@ -29,7 +29,7 @@ func TestMinutely(t *testing.T) {
 	c := minutely.New(testutil.NewClient(t, fs))
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	got, err := c.Minutely(context.Background(), loc, "")
+	got, err := c.Minutely(context.Background(), loc, qwx.Lang{})
 	if err != nil {
 		t.Fatalf("Minutely: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestMinutelyRequiresCoordinates(t *testing.T) {
 	c := minutely.New(testutil.NewClient(t, fs))
 
 	// 上游只认坐标，LocationID 与地名都不接受。
-	_, err := c.Minutely(context.Background(), qwx.Location{ID: "101010100"}, "")
+	_, err := c.Minutely(context.Background(), qwx.Location{ID: "101010100"}, qwx.Lang{})
 	if !errors.Is(err, qwx.ErrInvalidLocation) {
 		t.Fatalf("err = %v, want ErrInvalidLocation", err)
 	}
@@ -74,7 +74,7 @@ func TestMinutelyReportsEndpointAndTTL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseLocation: %v", err)
 	}
-	if _, err := c.Minutely(context.Background(), loc, "zh"); err != nil {
+	if _, err := c.Minutely(context.Background(), loc, qwx.LangZH); err != nil {
 		t.Fatalf("Minutely: %v", err)
 	}
 
@@ -88,5 +88,20 @@ func TestMinutelyReportsEndpointAndTTL(t *testing.T) {
 	// 缓存键字面量在已发布版本里定死，改了会让旧缓存条目全部失效。
 	if want := "qwx:minutely:116.41,39.92:lang=zh"; req.CacheKey != want {
 		t.Errorf("cacheKey = %q, want %q", req.CacheKey, want)
+	}
+}
+
+// TestInvalidLangRejects 非法语言代码在客户端就被挡下，不打上游。
+func TestInvalidLangRejects(t *testing.T) {
+	d := &testutil.RecordingDoer{}
+	c := minutely.New(d)
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	_, err := c.Minutely(context.Background(), loc, qwx.Lang{API: "中文"})
+	if !errors.Is(err, qwx.ErrInvalidParameter) {
+		t.Fatalf("Minutely error = %v, want ErrInvalidParameter", err)
+	}
+	if len(d.Requests) != 0 {
+		t.Errorf("requests = %d, want 0 (invalid lang must not reach upstream)", len(d.Requests))
 	}
 }

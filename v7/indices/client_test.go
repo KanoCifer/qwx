@@ -28,7 +28,7 @@ func TestIndices(t *testing.T) {
 	c := indices.New(testutil.NewClient(t, fs))
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	got, err := c.Indices(context.Background(), loc, indices.TypeFishing, 1, "")
+	got, err := c.Indices(context.Background(), loc, indices.TypeFishing, 1, qwx.Lang{})
 	if err != nil {
 		t.Fatalf("Indices: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestIndicesRejectsUnsupportedDays(t *testing.T) {
 
 	// 上游只认 1d 与 3d，其余天数码 404。
 	for _, days := range []int{2, 7, 10, 30} {
-		if _, err := c.Indices(context.Background(), loc, 0, days, ""); err == nil {
+		if _, err := c.Indices(context.Background(), loc, 0, days, qwx.Lang{}); err == nil {
 			t.Errorf("days=%d: expected error", days)
 		}
 	}
@@ -70,7 +70,7 @@ func TestIndicesRejectsOutOfRangeType(t *testing.T) {
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
 	for _, typ := range []int{-1, indices.MaxType + 1} {
-		_, err := c.Indices(context.Background(), loc, typ, 1, "")
+		_, err := c.Indices(context.Background(), loc, typ, 1, qwx.Lang{})
 		if !errors.Is(err, qwx.ErrInvalidParameter) {
 			t.Errorf("type=%d: err = %v, want ErrInvalidParameter", typ, err)
 		}
@@ -84,7 +84,7 @@ func TestIndicesRequiresCoordinates(t *testing.T) {
 	fs := testutil.NewFakeServer(t, "{}")
 	c := indices.New(testutil.NewClient(t, fs))
 
-	_, err := c.Indices(context.Background(), qwx.Location{ID: "101010100"}, 0, 1, "")
+	_, err := c.Indices(context.Background(), qwx.Location{ID: "101010100"}, 0, 1, qwx.Lang{})
 	if !errors.Is(err, qwx.ErrInvalidLocation) {
 		t.Fatalf("err = %v, want ErrInvalidLocation", err)
 	}
@@ -101,7 +101,7 @@ func TestIndicesReportsEndpointAndTTL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseLocation: %v", err)
 	}
-	if _, err := c.Indices(context.Background(), loc, 0, 3, "zh"); err != nil {
+	if _, err := c.Indices(context.Background(), loc, 0, 3, qwx.LangZH); err != nil {
 		t.Fatalf("Indices: %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestIndicesMulti(t *testing.T) {
 	c := indices.New(testutil.NewClient(t, fs))
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	got, err := c.IndicesMulti(context.Background(), loc, []int{3, 4}, 1, "zh")
+	got, err := c.IndicesMulti(context.Background(), loc, []int{3, 4}, 1, qwx.LangZH)
 	if err != nil {
 		t.Fatalf("IndicesMulti: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestIndicesMultiCacheKey(t *testing.T) {
 	c := indices.New(d)
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	if _, err := c.IndicesMulti(context.Background(), loc, []int{3, 4}, 1, "zh"); err != nil {
+	if _, err := c.IndicesMulti(context.Background(), loc, []int{3, 4}, 1, qwx.LangZH); err != nil {
 		t.Fatalf("IndicesMulti: %v", err)
 	}
 	if want := "qwx:indices:116.41,39.92:t3,4:d1:lang=zh"; d.Last(t).CacheKey != want {
@@ -157,7 +157,7 @@ func TestIndicesMultiCacheKey(t *testing.T) {
 	}
 
 	// 单类型的键与旧的单类型调用完全一致。
-	if _, err := c.IndicesMulti(context.Background(), loc, []int{3}, 1, "zh"); err != nil {
+	if _, err := c.IndicesMulti(context.Background(), loc, []int{3}, 1, qwx.LangZH); err != nil {
 		t.Fatalf("IndicesMulti: %v", err)
 	}
 	if want := "qwx:indices:116.41,39.92:t3:d1:lang=zh"; d.Last(t).CacheKey != want {
@@ -173,23 +173,23 @@ func TestIndicesMultiRejectsBadInput(t *testing.T) {
 	ctx := context.Background()
 
 	// 类型列表不能为空。
-	if _, err := c.IndicesMulti(ctx, loc, nil, 1, ""); !errors.Is(err, qwx.ErrInvalidParameter) {
+	if _, err := c.IndicesMulti(ctx, loc, nil, 1, qwx.Lang{}); !errors.Is(err, qwx.ErrInvalidParameter) {
 		t.Errorf("err = %v, want ErrInvalidParameter", err)
 	}
 	// 类型取值越界。
-	if _, err := c.IndicesMulti(ctx, loc, []int{3, indices.MaxType + 1}, 1, ""); !errors.Is(err, qwx.ErrInvalidParameter) {
+	if _, err := c.IndicesMulti(ctx, loc, []int{3, indices.MaxType + 1}, 1, qwx.Lang{}); !errors.Is(err, qwx.ErrInvalidParameter) {
 		t.Errorf("err = %v, want ErrInvalidParameter", err)
 	}
 	// 取全部时不能与其他类型混用。
-	if _, err := c.IndicesMulti(ctx, loc, []int{indices.TypeAll, 3}, 1, ""); !errors.Is(err, qwx.ErrInvalidParameter) {
+	if _, err := c.IndicesMulti(ctx, loc, []int{indices.TypeAll, 3}, 1, qwx.Lang{}); !errors.Is(err, qwx.ErrInvalidParameter) {
 		t.Errorf("err = %v, want ErrInvalidParameter", err)
 	}
 	// 天数只支持 1 与 3。
-	if _, err := c.IndicesMulti(ctx, loc, []int{3}, 7, ""); !errors.Is(err, qwx.ErrInvalidParameter) {
+	if _, err := c.IndicesMulti(ctx, loc, []int{3}, 7, qwx.Lang{}); !errors.Is(err, qwx.ErrInvalidParameter) {
 		t.Errorf("err = %v, want ErrInvalidParameter", err)
 	}
 	// 位置必须是坐标对。
-	if _, err := c.IndicesMulti(ctx, qwx.Location{ID: "101010100"}, []int{3}, 1, ""); !errors.Is(err, qwx.ErrInvalidLocation) {
+	if _, err := c.IndicesMulti(ctx, qwx.Location{ID: "101010100"}, []int{3}, 1, qwx.Lang{}); !errors.Is(err, qwx.ErrInvalidLocation) {
 		t.Errorf("err = %v, want ErrInvalidLocation", err)
 	}
 	if fs.Hits != 0 {

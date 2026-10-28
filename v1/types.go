@@ -9,6 +9,8 @@
 // 所以这里的可选字段一律用指针，缺失与零值可区分。
 package v1
 
+import "github.com/KanoCifer/qwx"
+
 // Metadata 是新一代接口统一的元数据块。
 type Metadata struct {
 	// Tag 是本次响应的数据标签。
@@ -27,8 +29,10 @@ type Metadata struct {
 // 天气与预警两个端点族接受同一组参数，所以类型放在这里 —— 只服务单一
 // 端点族的参数留在该端点族自己的包里。
 type Options struct {
-	// Lang 是语言代码，如 "zh"、"en"。留空用上游默认。
-	Lang string
+	// Lang 是语言，如 [github.com/KanoCifer/qwx.LangZH]。留空用上游默认。
+	//
+	// 上游默认是所在国家或地区的官方语言，没有官方语言时回退到英语。
+	Lang qwx.Lang
 	// LocalTime 是否返回查询地点的当地时间。
 	//
 	// 新一代接口默认给 UTC（"2026-10-21T05:00Z"），不传 localTime

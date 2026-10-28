@@ -28,8 +28,8 @@ const cacheTTL = 24 * time.Hour
 // 四个检索端点接受的参数子集不同，各端点只上报自己认的参数：行政区划
 // 只有城市检索认，搜索范围城市检索与热门城市认，限定城市只有 POI 检索认。
 type Options struct {
-	// Lang 是语言代码。留空用上游默认。
-	Lang string
+	// Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+	Lang qwx.Lang
 	// Number 是返回条数上限。0 用上游默认（10）。
 	Number int
 	// Adm 是上级行政区划的 LocationID，如 "101010100"。
@@ -51,23 +51,23 @@ type Options struct {
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
 func (o Options) cityParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang, Number: o.Number, Adm: o.Adm, Range: o.Range}
+	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, Adm: o.Adm, Range: o.Range}
 }
 
 // poiParams 是 POI 检索用的查询参数。
 func (o Options) poiParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang, Number: o.Number, City: o.City}
+	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, City: o.City}
 }
 
 // topParams 是热门城市用的查询参数。
 func (o Options) topParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang, Number: o.Number, Range: o.Range}
+	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, Range: o.Range}
 }
 
 // POIRangeOptions 是 POI 范围检索的可选参数。
 type POIRangeOptions struct {
-	// Lang 是语言代码。
-	Lang string
+	// Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+	Lang qwx.Lang
 	// Number 是返回条数上限。0 用上游默认（10）。
 	Number int
 	// Radius 是搜索半径（公里）。0 用上游默认（5）。
@@ -79,7 +79,7 @@ type POIRangeOptions struct {
 // 半径用指针传：半径为 0 与"没有半径参数"在键里要分开，而请求里都不
 // 发 radius（上游按默认值处理）。
 func (o POIRangeOptions) poiRangeParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang, Number: o.Number, Radius: &o.Radius}
+	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, Radius: &o.Radius}
 }
 
 // POIType 是 POI 检索的类型。

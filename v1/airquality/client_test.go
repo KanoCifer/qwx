@@ -32,7 +32,7 @@ func TestCurrent(t *testing.T) {
 	c := airquality.New(testutil.NewClient(t, fs))
 	loc := qwx.Location{Lat: 54.99, Lon: -1.61}
 
-	got, err := c.Current(context.Background(), loc, airquality.Options{Lang: "zh"})
+	got, err := c.Current(context.Background(), loc, airquality.Options{Lang: qwx.LangZH})
 	if err != nil {
 		t.Fatalf("Current: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 	c := airquality.New(d)
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	if _, err := c.Current(context.Background(), loc, airquality.Options{Lang: "zh"}); err != nil {
+	if _, err := c.Current(context.Background(), loc, airquality.Options{Lang: qwx.LangZH}); err != nil {
 		t.Fatalf("Current: %v", err)
 	}
 	if want := "qwx:aq:v1:current:39.92,116.41:lang=zh"; d.Last(t).CacheKey != want {
@@ -213,7 +213,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
 	}
 
-	if _, err := c.Station(context.Background(), "P51762", airquality.Options{Lang: "zh"}); err != nil {
+	if _, err := c.Station(context.Background(), "P51762", airquality.Options{Lang: qwx.LangZH}); err != nil {
 		t.Fatalf("Station: %v", err)
 	}
 	if want := "qwx:aq:v1:station:P51762:lang=zh"; d.Last(t).CacheKey != want {

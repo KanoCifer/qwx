@@ -30,15 +30,15 @@ const (
 
 // Options 是空气质量接口的可选参数。
 type Options struct {
-	// Lang 是语言代码。留空用上游默认。
-	Lang string
+	// Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+	Lang qwx.Lang
 }
 
 // params 是影响结果的查询参数。
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
 func (o Options) params() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang}
+	return cachekey.Params{Lang: o.Lang.API}
 }
 
 // Index 是一个 AQI 指数条目。

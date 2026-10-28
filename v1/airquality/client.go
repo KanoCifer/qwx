@@ -32,10 +32,15 @@ func New(base qwx.Doer) *Client {
 //
 // 调 GET /airquality/v1/current/{latitude}/{longitude}。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:aq:v1:current:<lat>,<lon>` 加语言后缀。
 //
 // 默认 TTL 30 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointCurrent] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*Current, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	lat, lon, err := loc.Path()
 	if err != nil {
 		return nil, err
@@ -69,10 +74,15 @@ func currentCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // 调 GET /airquality/v1/daily/{latitude}/{longitude}。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:aq:v1:daily:<lat>,<lon>` 加语言后缀。
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointDaily] 覆盖。
 func (c *Client) Daily(ctx context.Context, loc qwx.Location, opts Options) (*DailyForecast, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	lat, lon, err := loc.Path()
 	if err != nil {
 		return nil, err
@@ -106,10 +116,15 @@ func dailyCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // 调 GET /airquality/v1/hourly/{latitude}/{longitude}。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:aq:v1:hourly:<lat>,<lon>` 加语言后缀。
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointHourly] 覆盖。
 func (c *Client) Hourly(ctx context.Context, loc qwx.Location, opts Options) (*HourlyForecast, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	lat, lon, err := loc.Path()
 	if err != nil {
 		return nil, err
@@ -145,12 +160,20 @@ func hourlyCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // stationID 是监测站 ID（如 "P51762"），来自 [Current] 的 Stations 列表。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
+// 官方文档没有这个端点的独立页面，lang 的支持无从核实 —— 上游与其他
+// 空气质量端点同源，接受 lang。
+//
 // 缓存键：`qwx:aq:v1:station:<id>` 加语言后缀。
 //
 // 默认 TTL 30 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointStation] 覆盖。
 func (c *Client) Station(ctx context.Context, stationID string, opts Options) (*StationData, error) {
 	if stationID == "" {
 		return nil, fmt.Errorf("%w: empty station ID", qwx.ErrInvalidParameter)
+	}
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
 	}
 	p := opts.params()
 	var out StationData

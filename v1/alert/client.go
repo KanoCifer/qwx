@@ -32,10 +32,15 @@ func New(base qwx.Doer) *Client {
 //
 // 调 GET /weatheralert/v1/current/{latitude}/{longitude}。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:alert:v1:<lat>,<lon>` 加查询参数后缀。
 //
 // 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*Result, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	lat, lon, err := loc.Path()
 	if err != nil {
 		return nil, err

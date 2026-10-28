@@ -86,7 +86,7 @@ func main() {
 	}
 
 	current, err := w.Current(ctx, loc, weather.Options{
-		Lang:      "zh",
+		Lang:      qwx.LangZH,
 		LocalTime: true, // 不传会拿到 UTC，时间差 8 小时
 	})
 	if err != nil {
@@ -210,6 +210,58 @@ fmt.Println(loc, station, city)
 
 坐标顺序分两代：新一代走路径参数，纬度在前（`Location.Path()`）；v7 与 GeoAPI 走查询参数，经度在前（`Location.Query()`）。写反了上游直接回 400。
 
+### 多语言
+
+上游用 `lang` 查询参数切换返回的语言。语言用 `qwx.Lang` 表示，SDK 内置官方「多语言」页列出的 31 种语言：
+
+| 语言 | 变量 | API 代码 |
+| --- | --- | --- |
+| 简体中文 | `qwx.LangZH` | `zh` |
+| 繁体中文 | `qwx.LangZHHant` | `zh-hant` |
+| 英文 | `qwx.LangEN` | `en` |
+| 德语 | `qwx.LangDE` | `de` |
+| 西班牙语 | `qwx.LangES` | `es` |
+| 法语 | `qwx.LangFR` | `fr` |
+| 意大利语 | `qwx.LangIT` | `it` |
+| 日语 | `qwx.LangJA` | `ja` |
+| 韩语 | `qwx.LangKO` | `ko` |
+| 俄语 | `qwx.LangRU` | `ru` |
+| 印地语 | `qwx.LangHI` | `hi` |
+| 泰语 | `qwx.LangTH` | `th` |
+| 阿拉伯语 | `qwx.LangAR` | `ar` |
+| 葡萄牙语 | `qwx.LangPT` | `pt` |
+| 孟加拉语 | `qwx.LangBN` | `bn` |
+| 马来语 | `qwx.LangMS` | `ms` |
+| 荷兰语 | `qwx.LangNL` | `nl` |
+| 希腊语 | `qwx.LangEL` | `el` |
+| 拉丁语 | `qwx.LangLA` | `la` |
+| 瑞典语 | `qwx.LangSV` | `sv` |
+| 印尼语 | `qwx.LangID` | `id` |
+| 波兰语 | `qwx.LangPL` | `pl` |
+| 土耳其语 | `qwx.LangTR` | `tr` |
+| 捷克语 | `qwx.LangCS` | `cs` |
+| 爱沙尼亚语 | `qwx.LangET` | `et` |
+| 越南语 | `qwx.LangVI` | `vi` |
+| 菲律宾语 | `qwx.LangFIL` | `fil` |
+| 芬兰语 | `qwx.LangFI` | `fi` |
+| 希伯来语 | `qwx.LangHE` | `he` |
+| 冰岛语 | `qwx.LangIS` | `is` |
+| 挪威语 | `qwx.LangNB` | `nb` |
+
+语言留空（零值 `qwx.Lang{}`）用上游默认：所在国家或地区的官方语言，没有官方语言时回退到英语。
+
+```go
+cur, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
+```
+
+按代码反查语言，官方给的等价代码也认：
+
+```go
+lang, ok := qwx.LookupLang("zh-hans") // 简体中文的另一个等价代码
+```
+
+语言代码形态不对时返回 `ErrInvalidParameter`，不打上游。太阳辐射预报、潮汐、台风、日出日落与太阳高度角这几个端点没有语言参数，上游不认。
+
 ### 天气
 
 ```go
@@ -224,14 +276,14 @@ w := weather.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-current, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
+current, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
 fmt.Println(current.Condition.Text, current.Temperature.Value, current.Temperature.Unit)
 fmt.Println(current.Humidity*100, "%") // 湿度是 0~1 的比例
 
-hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: "zh", LocalTime: true})
+hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
@@ -243,7 +295,7 @@ for _, h := range hourly.Hours {
 	fmt.Println(h.ForecastTime, h.Condition.Text, prob)
 }
 
-daily, err := w.Daily(ctx, loc, 3, weather.Options{Lang: "zh", LocalTime: true})
+daily, err := w.Daily(ctx, loc, 3, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
@@ -268,7 +320,7 @@ aq := airquality.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-cur, err := aq.Current(ctx, loc, airquality.Options{Lang: "zh"})
+cur, err := aq.Current(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -278,7 +330,7 @@ for _, idx := range cur.Indexes {
 
 // 附近监测站，再按站点查实测数据
 for _, s := range cur.Stations {
-	station, err := aq.Station(ctx, s.ID, airquality.Options{Lang: "zh"})
+	station, err := aq.Station(ctx, s.ID, airquality.Options{Lang: qwx.LangZH})
 	if err != nil {
 		return err
 	}
@@ -286,11 +338,11 @@ for _, s := range cur.Stations {
 }
 
 // 逐日与逐小时预报
-daily, err := aq.Daily(ctx, loc, airquality.Options{Lang: "zh"})
+daily, err := aq.Daily(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
-hourly, err := aq.Hourly(ctx, loc, airquality.Options{Lang: "zh"})
+hourly, err := aq.Hourly(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -313,7 +365,7 @@ al := alert.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-result, err := al.Current(ctx, loc, alert.Options{Lang: "zh", LocalTime: true})
+result, err := al.Current(ctx, loc, alert.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
@@ -338,7 +390,7 @@ g := geo.New(base)
 ctx := context.Background()
 
 // 按地名检索城市
-cities, err := g.LookupCity(ctx, qwx.Location{Name: "杭州"}, geo.Options{Lang: "zh", Number: 10})
+cities, err := g.LookupCity(ctx, qwx.Location{Name: "杭州"}, geo.Options{Lang: qwx.LangZH, Number: 10})
 if err != nil {
 	return err
 }
@@ -351,7 +403,7 @@ for _, c := range cities.Locations {
 }
 
 // 附近潮汐站
-pois, err := g.LookupPOI(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POITSTA, geo.Options{Lang: "zh"})
+pois, err := g.LookupPOI(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POITSTA, geo.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -360,7 +412,7 @@ for _, p := range pois.POIs {
 }
 
 // 热门城市
-top, err := g.TopCities(ctx, geo.Options{Lang: "zh"})
+top, err := g.TopCities(ctx, geo.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -373,7 +425,7 @@ for _, c := range top.Cities {
 
 ```go
 ranges, err := g.POIRange(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POIScenic,
-	geo.POIRangeOptions{Lang: "zh", Number: 10, Radius: 20})
+	geo.POIRangeOptions{Lang: qwx.LangZH, Number: 10, Radius: 20})
 if err != nil {
 	return err
 }
@@ -386,7 +438,7 @@ GeoAPI 的四个检索端点共用一组可选参数：
 
 | 参数 | 作用 | 谁认 |
 | --- | --- | --- |
-| `Lang` | 语言代码，留空用上游默认 | 全部 |
+| `Lang` | 语言，留空用上游默认 | 全部 |
 | `Number` | 返回条数上限，0 用上游默认（10） | 全部 |
 | `Adm` | 上级行政区划的 LocationID，用于排除重名城市 | 城市检索 |
 | `Range` | 搜索范围，ISO 3166 国家代码，如 `cn`、`world` | 城市检索、热门城市 |
@@ -596,7 +648,7 @@ if sun.Sunrise != nil {
 	fmt.Println(*sun.Sunrise, *sun.Sunset)
 }
 
-moon, err := as.Moon(ctx, loc, date, astronomy.Options{Lang: "zh"})
+moon, err := as.Moon(ctx, loc, date, astronomy.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }

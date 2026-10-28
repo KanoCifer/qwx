@@ -77,7 +77,7 @@ func TestMoon(t *testing.T) {
 	c := astronomy.New(testutil.NewClient(t, fs))
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	got, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: "zh"})
+	got, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: qwx.LangZH})
 	if err != nil {
 		t.Fatalf("Moon: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestEndpointsAndTTL(t *testing.T) {
 		t.Errorf("ttl = %v, want 24h", req.TTL)
 	}
 
-	if _, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: "zh"}); err != nil {
+	if _, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: qwx.LangZH}); err != nil {
 		t.Fatalf("Moon: %v", err)
 	}
 	req = d.Last(t)
@@ -300,7 +300,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
 	}
 
-	if _, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: "zh"}); err != nil {
+	if _, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: qwx.LangZH}); err != nil {
 		t.Fatalf("Moon: %v", err)
 	}
 	if want := "qwx:astronomy:moon:116.41,39.92:20260531:lang=zh"; d.Last(t).CacheKey != want {
@@ -339,11 +339,11 @@ func TestCacheKeysDistinguishResultAffectingParams(t *testing.T) {
 		}
 		add("Sun date=" + date)
 	}
-	for _, lang := range []string{"", "zh", "en"} {
+	for _, lang := range []qwx.Lang{{}, qwx.LangZH, qwx.LangEN} {
 		if _, err := c.Moon(context.Background(), loc, "20260531", astronomy.Options{Lang: lang}); err != nil {
 			t.Fatalf("Moon: %v", err)
 		}
-		add("Moon lang=" + lang)
+		add("Moon lang=" + lang.API)
 	}
 	// 每组换一个基准时间，各组的键才不会撞在一起。
 	for _, timeStr := range []string{"1200", "1800"} {

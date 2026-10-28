@@ -71,7 +71,7 @@ func TestLive(t *testing.T) {
 	as := astronomy.New(c)
 
 	t.Run("Current", func(t *testing.T) {
-		got, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
+		got, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 		if err != nil {
 			t.Fatalf("Current: %v", err)
 		}
@@ -79,7 +79,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Hourly", func(t *testing.T) {
-		got, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: "zh", LocalTime: true})
+		got, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 		if err != nil {
 			t.Fatalf("Hourly: %v", err)
 		}
@@ -87,7 +87,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Daily", func(t *testing.T) {
-		got, err := w.Daily(ctx, loc, 3, weather.Options{Lang: "zh", LocalTime: true})
+		got, err := w.Daily(ctx, loc, 3, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 		if err != nil {
 			t.Fatalf("Daily: %v", err)
 		}
@@ -95,7 +95,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("LookupCity", func(t *testing.T) {
-		got, err := g.LookupCity(ctx, qwx.Location{ID: "101010100"}, geo.Options{Lang: "zh"})
+		got, err := g.LookupCity(ctx, qwx.Location{ID: "101010100"}, geo.Options{Lang: qwx.LangZH})
 		if err != nil {
 			t.Fatalf("LookupCity: %v", err)
 		}
@@ -105,7 +105,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Indices", func(t *testing.T) {
-		got, err := idx.Indices(ctx, loc, indices.TypeFishing, 1, "zh")
+		got, err := idx.Indices(ctx, loc, indices.TypeFishing, 1, qwx.LangZH)
 		if err != nil {
 			t.Fatalf("Indices: %v", err)
 		}
@@ -115,7 +115,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Minutely", func(t *testing.T) {
-		got, err := mi.Minutely(ctx, loc, "zh")
+		got, err := mi.Minutely(ctx, loc, qwx.LangZH)
 		if err != nil {
 			t.Fatalf("Minutely: %v", err)
 		}
@@ -123,7 +123,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("AirQuality", func(t *testing.T) {
-		got, err := aq.Current(ctx, loc, airquality.Options{Lang: "zh"})
+		got, err := aq.Current(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 		if err != nil {
 			t.Fatalf("AirQuality: %v", err)
 		}
@@ -133,7 +133,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Alerts", func(t *testing.T) {
-		got, err := al.Current(ctx, loc, alert.Options{Lang: "zh", LocalTime: true})
+		got, err := al.Current(ctx, loc, alert.Options{Lang: qwx.LangZH, LocalTime: true})
 		if err != nil {
 			t.Fatalf("Alerts: %v", err)
 		}

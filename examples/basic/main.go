@@ -60,7 +60,7 @@ func main() {
 		log.Fatalf("位置解析失败: %v", err)
 	}
 
-	current, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
+	current, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 	if err != nil {
 		log.Fatalf("实时天气查询失败: %v", err)
 	}
@@ -72,14 +72,14 @@ func main() {
 	)
 
 	// 2. 逐小时预报。
-	hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: "zh", LocalTime: true})
+	hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 	if err != nil {
 		log.Fatalf("逐小时预报查询失败: %v", err)
 	}
 	fmt.Printf("逐小时预报 %d 条\n", len(hourly.Hours))
 
 	// 3. 逐日预报。
-	daily, err := w.Daily(ctx, loc, 3, weather.Options{Lang: "zh", LocalTime: true})
+	daily, err := w.Daily(ctx, loc, 3, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 	if err != nil {
 		log.Fatalf("逐日预报查询失败: %v", err)
 	}
@@ -96,7 +96,7 @@ func main() {
 	}
 
 	// 4. 城市检索（认地名）。
-	cities, err := g.LookupCity(ctx, qwx.Location{Name: "杭州"}, geo.Options{Lang: "zh"})
+	cities, err := g.LookupCity(ctx, qwx.Location{Name: "杭州"}, geo.Options{Lang: qwx.LangZH})
 	if err != nil {
 		log.Fatalf("城市检索失败: %v", err)
 	}
@@ -105,7 +105,7 @@ func main() {
 	}
 
 	// 5. 钓鱼指数（旧一代接口）。
-	idxResult, err := idx.Indices(ctx, loc, indices.TypeFishing, 1, "zh")
+	idxResult, err := idx.Indices(ctx, loc, indices.TypeFishing, 1, qwx.LangZH)
 	if err != nil {
 		log.Fatalf("生活指数查询失败: %v", err)
 	}

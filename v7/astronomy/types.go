@@ -25,8 +25,8 @@ const cacheTTL = 24 * time.Hour
 //
 // 只有月相端点认语言参数 —— 日出日落与太阳高度角不带语言。
 type Options struct {
-	// Lang 是语言代码，如 "zh"、"en"。留空用上游默认。
-	Lang string
+	// Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+	Lang qwx.Lang
 }
 
 // SunResult 是日出日落数据。

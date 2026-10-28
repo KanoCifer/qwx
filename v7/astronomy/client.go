@@ -84,8 +84,8 @@ func (c *Client) Sun(ctx context.Context, loc qwx.Location, date string) (*SunRe
 // date 必填，格式 "yyyyMMdd"。客户端只校验格式，日期范围交给上游判断：
 // 上游最多接受未来 60 天（含今天）。
 //
-// opts.Lang 是可选语言代码，留空用上游默认。月相名称与图标随语言变，
-// 所以 lang 进缓存键。
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。月相名称与图标随
+// 语言变，所以 lang 进缓存键。
 //
 // 缓存键：`qwx:astronomy:moon:<location>:<date>` 加语言后缀。
 //
@@ -97,7 +97,10 @@ func (c *Client) Moon(ctx context.Context, loc qwx.Location, date string, opts O
 	if err := validateDate(date); err != nil {
 		return nil, err
 	}
-	p := cachekey.Params{Lang: opts.Lang}
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
+	p := cachekey.Params{Lang: opts.Lang.API}
 	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("date", date)

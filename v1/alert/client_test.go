@@ -29,7 +29,7 @@ func TestCurrent(t *testing.T) {
 	c := alert.New(testutil.NewClient(t, fs))
 	loc := qwx.Location{Lat: 25.42, Lon: 110.29}
 
-	got, err := c.Current(context.Background(), loc, alert.Options{Lang: "zh", LocalTime: true})
+	got, err := c.Current(context.Background(), loc, alert.Options{Lang: qwx.LangZH, LocalTime: true})
 	if err != nil {
 		t.Fatalf("Current: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 	c := alert.New(d)
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	if _, err := c.Current(context.Background(), loc, alert.Options{Lang: "zh", LocalTime: true}); err != nil {
+	if _, err := c.Current(context.Background(), loc, alert.Options{Lang: qwx.LangZH, LocalTime: true}); err != nil {
 		t.Fatalf("Current: %v", err)
 	}
 	if want := "qwx:alert:v1:39.92,116.41:lang=zh:localTime=1"; d.Last(t).CacheKey != want {

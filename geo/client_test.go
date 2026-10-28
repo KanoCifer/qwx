@@ -2,6 +2,7 @@ package geo_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ func TestLookupCity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseLocation: %v", err)
 	}
-	got, err := c.LookupCity(context.Background(), loc, geo.Options{Lang: "zh"})
+	got, err := c.LookupCity(context.Background(), loc, geo.Options{Lang: qwx.LangZH})
 	if err != nil {
 		t.Fatalf("LookupCity: %v", err)
 	}
@@ -127,7 +128,7 @@ func TestTopCities(t *testing.T) {
 	fs := testutil.NewFakeServer(t, body)
 	c := geo.New(testutil.NewClient(t, fs))
 
-	got, err := c.TopCities(context.Background(), geo.Options{Lang: "zh", Number: 5})
+	got, err := c.TopCities(context.Background(), geo.Options{Lang: qwx.LangZH, Number: 5})
 	if err != nil {
 		t.Fatalf("TopCities: %v", err)
 	}
@@ -228,7 +229,7 @@ func TestOptionalParamsReachQueryAndKey(t *testing.T) {
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 	ctx := context.Background()
 
-	if _, err := c.LookupCity(ctx, loc, geo.Options{Lang: "zh", Adm: "101010100", Range: "cn"}); err != nil {
+	if _, err := c.LookupCity(ctx, loc, geo.Options{Lang: qwx.LangZH, Adm: "101010100", Range: "cn"}); err != nil {
 		t.Fatalf("LookupCity: %v", err)
 	}
 	req := d.Last(t)
@@ -273,7 +274,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseLocation: %v", err)
 	}
-	if _, err := c.LookupCity(context.Background(), idLoc, geo.Options{Lang: "zh"}); err != nil {
+	if _, err := c.LookupCity(context.Background(), idLoc, geo.Options{Lang: qwx.LangZH}); err != nil {
 		t.Fatalf("LookupCity: %v", err)
 	}
 	if want := "qwx:geo:city:101011600:lang=zh"; d.Last(t).CacheKey != want {
@@ -288,7 +289,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
 	}
 
-	if _, err := c.POIRange(context.Background(), coordLoc, geo.POIScenic, geo.POIRangeOptions{Lang: "zh", Number: 5, Radius: 20}); err != nil {
+	if _, err := c.POIRange(context.Background(), coordLoc, geo.POIScenic, geo.POIRangeOptions{Lang: qwx.LangZH, Number: 5, Radius: 20}); err != nil {
 		t.Fatalf("POIRange: %v", err)
 	}
 	if want := "qwx:geo:poirange:scenic:116.41,39.92:lang=zh:n=5:r=20"; d.Last(t).CacheKey != want {
@@ -303,10 +304,25 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
 	}
 
-	if _, err := c.TopCities(context.Background(), geo.Options{Lang: "zh", Number: 5}); err != nil {
+	if _, err := c.TopCities(context.Background(), geo.Options{Lang: qwx.LangZH, Number: 5}); err != nil {
 		t.Fatalf("TopCities: %v", err)
 	}
 	if want := "qwx:geo:topcity:lang=zh:n=5"; d.Last(t).CacheKey != want {
 		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
+	}
+}
+
+// TestInvalidLangRejects 非法语言代码在客户端就被挡下，不打上游。
+func TestInvalidLangRejects(t *testing.T) {
+	d := &testutil.RecordingDoer{}
+	c := geo.New(d)
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	_, err := c.LookupCity(context.Background(), loc, geo.Options{Lang: qwx.Lang{API: "zh_hans"}})
+	if !errors.Is(err, qwx.ErrInvalidParameter) {
+		t.Fatalf("LookupCity error = %v, want ErrInvalidParameter", err)
+	}
+	if len(d.Requests) != 0 {
+		t.Errorf("requests = %d, want 0 (invalid lang must not reach upstream)", len(d.Requests))
 	}
 }

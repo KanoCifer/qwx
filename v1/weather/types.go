@@ -44,7 +44,7 @@ type Options = v1.Options
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
 func params(o Options) cachekey.Params {
-	return cachekey.Params{Lang: o.Lang, LocalTime: o.LocalTime}
+	return cachekey.Params{Lang: o.Lang.API, LocalTime: o.LocalTime}
 }
 
 // Condition 是天气现象。

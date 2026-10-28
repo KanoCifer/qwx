@@ -2,6 +2,7 @@ package weather_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func TestCurrentWeather(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseLocation: %v", err)
 	}
-	got, err := c.Current(context.Background(), loc, weather.Options{Lang: "zh", LocalTime: true})
+	got, err := c.Current(context.Background(), loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 	if err != nil {
 		t.Fatalf("Current: %v", err)
 	}
@@ -232,11 +233,11 @@ func TestCacheKeyIncludesParams(t *testing.T) {
 	c := weather.New(testutil.NewClient(t, fs, qwx.WithCache(qwx.NewMemoryCache())))
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	if _, err := c.Current(context.Background(), loc, weather.Options{Lang: "zh"}); err != nil {
+	if _, err := c.Current(context.Background(), loc, weather.Options{Lang: qwx.LangZH}); err != nil {
 		t.Fatalf("Current: %v", err)
 	}
 	// 语言不同是不同的数据，不能共用缓存。
-	if _, err := c.Current(context.Background(), loc, weather.Options{Lang: "en"}); err != nil {
+	if _, err := c.Current(context.Background(), loc, weather.Options{Lang: qwx.LangEN}); err != nil {
 		t.Fatalf("Current: %v", err)
 	}
 	if fs.Hits != 2 {
@@ -315,7 +316,7 @@ func TestCacheKeysAreFrozen(t *testing.T) {
 	c := weather.New(d)
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-	if _, err := c.Current(context.Background(), loc, weather.Options{Lang: "zh", LocalTime: true}); err != nil {
+	if _, err := c.Current(context.Background(), loc, weather.Options{Lang: qwx.LangZH, LocalTime: true}); err != nil {
 		t.Fatalf("Current: %v", err)
 	}
 	if want := "qwx:v1:current:39.92,116.41:lang=zh:localTime=1"; d.Last(t).CacheKey != want {
@@ -352,7 +353,7 @@ func TestCacheKeySeparatesAffectingParams(t *testing.T) {
 	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
 	keys := map[string]bool{}
-	for _, opts := range []weather.Options{{Lang: "zh"}, {Lang: "en"}, {Lang: "zh", LocalTime: true}} {
+	for _, opts := range []weather.Options{{Lang: qwx.LangZH}, {Lang: qwx.LangEN}, {Lang: qwx.LangZH, LocalTime: true}} {
 		if _, err := c.Current(context.Background(), loc, opts); err != nil {
 			t.Fatalf("Current: %v", err)
 		}
@@ -371,5 +372,20 @@ func TestCacheKeySeparatesAffectingParams(t *testing.T) {
 	}
 	if len(hourly) != 2 {
 		t.Errorf("keys = %v, want 2 个不同的键", hourly)
+	}
+}
+
+// TestInvalidLangRejects 非法语言代码在客户端就被挡下，不打上游。
+func TestInvalidLangRejects(t *testing.T) {
+	d := &testutil.RecordingDoer{}
+	c := weather.New(d)
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	_, err := c.Current(context.Background(), loc, weather.Options{Lang: qwx.Lang{API: "zh hans"}})
+	if !errors.Is(err, qwx.ErrInvalidParameter) {
+		t.Fatalf("Current error = %v, want ErrInvalidParameter", err)
+	}
+	if len(d.Requests) != 0 {
+		t.Errorf("requests = %d, want 0 (invalid lang must not reach upstream)", len(d.Requests))
 	}
 }

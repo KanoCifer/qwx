@@ -87,7 +87,7 @@ func main() {
 	}
 
 	current, err := w.Current(ctx, loc, weather.Options{
-		Lang:      "zh",
+		Lang:      qwx.LangZH,
 		LocalTime: true, // without this you get UTC, which is 8 hours off
 	})
 	if err != nil {
@@ -211,6 +211,58 @@ The new generation accepts coordinates only. To convert a LocationID, call `geo.
 
 Coordinate order differs between generations: the new generation uses path parameters with latitude first (`Location.Path()`), while v7 and GeoAPI use query parameters with longitude first (`Location.Query()`). Reversing them makes the upstream return 400.
 
+### Multi-language
+
+The upstream switches the response language with the `lang` query parameter. Languages are represented by `qwx.Lang`; the SDK ships the 31 languages listed on the official "Multi-language" page:
+
+| Language | Variable | API code |
+| --- | --- | --- |
+| Simplified Chinese | `qwx.LangZH` | `zh` |
+| Traditional Chinese | `qwx.LangZHHant` | `zh-hant` |
+| English | `qwx.LangEN` | `en` |
+| German | `qwx.LangDE` | `de` |
+| Spanish | `qwx.LangES` | `es` |
+| French | `qwx.LangFR` | `fr` |
+| Italian | `qwx.LangIT` | `it` |
+| Japanese | `qwx.LangJA` | `ja` |
+| Korean | `qwx.LangKO` | `ko` |
+| Russian | `qwx.LangRU` | `ru` |
+| Hindi | `qwx.LangHI` | `hi` |
+| Thai | `qwx.LangTH` | `th` |
+| Arabic | `qwx.LangAR` | `ar` |
+| Portuguese | `qwx.LangPT` | `pt` |
+| Bengali | `qwx.LangBN` | `bn` |
+| Malay | `qwx.LangMS` | `ms` |
+| Dutch | `qwx.LangNL` | `nl` |
+| Greek | `qwx.LangEL` | `el` |
+| Latin | `qwx.LangLA` | `la` |
+| Swedish | `qwx.LangSV` | `sv` |
+| Indonesian | `qwx.LangID` | `id` |
+| Polish | `qwx.LangPL` | `pl` |
+| Turkish | `qwx.LangTR` | `tr` |
+| Czech | `qwx.LangCS` | `cs` |
+| Estonian | `qwx.LangET` | `et` |
+| Vietnamese | `qwx.LangVI` | `vi` |
+| Filipino | `qwx.LangFIL` | `fil` |
+| Finnish | `qwx.LangFI` | `fi` |
+| Hebrew | `qwx.LangHE` | `he` |
+| Icelandic | `qwx.LangIS` | `is` |
+| Norwegian | `qwx.LangNB` | `nb` |
+
+An empty language (the zero value `qwx.Lang{}`) uses the upstream default: the official language of the country or region, falling back to English when there is none.
+
+```go
+cur, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
+```
+
+Look a language up by code; the equivalent codes the official page lists are recognised too:
+
+```go
+lang, ok := qwx.LookupLang("zh-hans") // another code for Simplified Chinese
+```
+
+A malformed language code returns `ErrInvalidParameter` without hitting the upstream. The solar radiation forecast, tides, typhoons, sunrise/sunset and solar elevation angle endpoints have no language parameter — the upstream does not accept one.
+
 ### Weather
 
 ```go
@@ -225,14 +277,14 @@ w := weather.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-current, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
+current, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
 fmt.Println(current.Condition.Text, current.Temperature.Value, current.Temperature.Unit)
 fmt.Println(current.Humidity*100, "%") // humidity is a 0~1 ratio
 
-hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: "zh", LocalTime: true})
+hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
@@ -244,7 +296,7 @@ for _, h := range hourly.Hours {
 	fmt.Println(h.ForecastTime, h.Condition.Text, prob)
 }
 
-daily, err := w.Daily(ctx, loc, 3, weather.Options{Lang: "zh", LocalTime: true})
+daily, err := w.Daily(ctx, loc, 3, weather.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
@@ -269,7 +321,7 @@ aq := airquality.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-cur, err := aq.Current(ctx, loc, airquality.Options{Lang: "zh"})
+cur, err := aq.Current(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -279,7 +331,7 @@ for _, idx := range cur.Indexes {
 
 // Nearby monitoring stations, then measured data per station
 for _, s := range cur.Stations {
-	station, err := aq.Station(ctx, s.ID, airquality.Options{Lang: "zh"})
+	station, err := aq.Station(ctx, s.ID, airquality.Options{Lang: qwx.LangZH})
 	if err != nil {
 		return err
 	}
@@ -287,11 +339,11 @@ for _, s := range cur.Stations {
 }
 
 // Daily and hourly forecasts
-daily, err := aq.Daily(ctx, loc, airquality.Options{Lang: "zh"})
+daily, err := aq.Daily(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
-hourly, err := aq.Hourly(ctx, loc, airquality.Options{Lang: "zh"})
+hourly, err := aq.Hourly(ctx, loc, airquality.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -314,7 +366,7 @@ al := alert.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
 
-result, err := al.Current(ctx, loc, alert.Options{Lang: "zh", LocalTime: true})
+result, err := al.Current(ctx, loc, alert.Options{Lang: qwx.LangZH, LocalTime: true})
 if err != nil {
 	return err
 }
@@ -339,7 +391,7 @@ g := geo.New(base)
 ctx := context.Background()
 
 // City lookup by place name
-cities, err := g.LookupCity(ctx, qwx.Location{Name: "杭州"}, geo.Options{Lang: "zh", Number: 10})
+cities, err := g.LookupCity(ctx, qwx.Location{Name: "杭州"}, geo.Options{Lang: qwx.LangZH, Number: 10})
 if err != nil {
 	return err
 }
@@ -352,7 +404,7 @@ for _, c := range cities.Locations {
 }
 
 // Nearby tide stations
-pois, err := g.LookupPOI(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POITSTA, geo.Options{Lang: "zh"})
+pois, err := g.LookupPOI(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POITSTA, geo.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -361,7 +413,7 @@ for _, p := range pois.POIs {
 }
 
 // Popular cities
-top, err := g.TopCities(ctx, geo.Options{Lang: "zh"})
+top, err := g.TopCities(ctx, geo.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }
@@ -374,7 +426,7 @@ for _, c := range top.Cities {
 
 ```go
 ranges, err := g.POIRange(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POIScenic,
-	geo.POIRangeOptions{Lang: "zh", Number: 10, Radius: 20})
+	geo.POIRangeOptions{Lang: qwx.LangZH, Number: 10, Radius: 20})
 if err != nil {
 	return err
 }
@@ -387,7 +439,7 @@ The four GeoAPI lookup endpoints share one set of optional parameters:
 
 | Parameter | Effect | Accepted by |
 | --- | --- | --- |
-| `Lang` | Language code; empty uses the upstream default | All |
+| `Lang` | Language; empty uses the upstream default | All |
 | `Number` | Maximum number of results; 0 uses the upstream default (10) | All |
 | `Adm` | LocationID of the parent administrative division, to filter out duplicate city names | City lookup |
 | `Range` | Search range as an ISO 3166 country code, such as `cn` or `world` | City lookup, popular cities |
@@ -597,7 +649,7 @@ if sun.Sunrise != nil {
 	fmt.Println(*sun.Sunrise, *sun.Sunset)
 }
 
-moon, err := as.Moon(ctx, loc, date, astronomy.Options{Lang: "zh"})
+moon, err := as.Moon(ctx, loc, date, astronomy.Options{Lang: qwx.LangZH})
 if err != nil {
 	return err
 }

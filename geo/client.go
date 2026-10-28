@@ -38,10 +38,15 @@ func New(base qwx.Doer) *Client {
 // opts.Adm 限定上级行政区划（排除重名城市），opts.Range 限定搜索范围，
 // 用 ISO 3166 国家代码，如 "cn"、"world"。留空时上游在所有城市里搜。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:geo:city:<location>` 加查询参数后缀。
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointCity] 覆盖。
 func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options) (*CityResult, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	p := opts.cityParams()
 	q := p.Query()
 	q.Set("location", loc.Query())
@@ -78,6 +83,8 @@ func cityCacheKey(loc qwx.Location, p cachekey.Params) string {
 // opts.City 限定 POI 所在城市，城市名或 LocationID。城市名是精准匹配，
 // 匹配不上上游返回空。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // **上游在该类型附近没有数据时回 400 "No Such Location"，而不是空列表** ——
 // 这是实测行为：内陆城市（如北京）查 TSTA（潮汐站）与 CSTA（观测站）
 // 都会 400，沿海城市（如舟山 P2419、高雄）才查得到。调用方要按错误处理，
@@ -91,6 +98,9 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 	case POIScenic, POICSTA, POITSTA:
 	default:
 		return nil, fmt.Errorf("%w: unsupported POI type %q", qwx.ErrInvalidParameter, typ)
+	}
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
 	}
 	p := opts.poiParams()
 	q := p.Query()
@@ -129,6 +139,8 @@ func poiCacheKey(typ POIType, loc qwx.Location, p cachekey.Params) string {
 // 与 [Client.LookupPOI] 一样，上游在该类型附近无数据时回 400
 // "No Such Location"，不是空列表。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:geo:poirange:<type>:<location>` 加查询参数后缀
 // （含半径）。
 //
@@ -141,6 +153,9 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 	}
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: POI range requires coordinates", qwx.ErrInvalidLocation)
+	}
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
 	}
 	p := opts.poiRangeParams()
 	q := p.Query()
@@ -176,10 +191,15 @@ func poiRangeCacheKey(typ POIType, loc qwx.Location, p cachekey.Params) string {
 //
 // opts.Range 限定搜索范围，用 ISO 3166 国家代码，如 "cn"、"world"。
 //
+// opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:geo:topcity` 加查询参数后缀。
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointTopCities] 覆盖。
 func (c *Client) TopCities(ctx context.Context, opts Options) (*TopCityResult, error) {
+	if err := opts.Lang.Validate(); err != nil {
+		return nil, err
+	}
 	p := opts.topParams()
 	var out TopCityResult
 	err := c.base.Do(ctx, qwx.Request{

@@ -45,10 +45,12 @@ func New(base qwx.Doer) *Client {
 //
 // loc 必须是坐标对：上游对裸经度（如 "121.47"）一律回 400。
 //
+// lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:indices:<location>:t<type>:d<days>` 加语言后缀。
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
-func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, lang string) (*Result, error) {
+func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, lang qwx.Lang) (*Result, error) {
 	return c.IndicesMulti(ctx, loc, []int{typ}, days, lang)
 }
 
@@ -61,11 +63,13 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 //
 // days 只支持 1 与 3。types 每项取值 1~16，不能为空。
 //
+// lang 是语言，如 [qwx.LangZH]。留空用上游默认。
+//
 // 缓存键：`qwx:indices:<location>:t<types>:d<days>` 加语言后缀，
 // 多个类型用逗号连接（"t3,5"）。
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
-func (c *Client) IndicesMulti(ctx context.Context, loc qwx.Location, types []int, days int, lang string) (*Result, error) {
+func (c *Client) IndicesMulti(ctx context.Context, loc qwx.Location, types []int, days int, lang qwx.Lang) (*Result, error) {
 	if len(types) == 0 {
 		return nil, fmt.Errorf("%w: indices types must not be empty", qwx.ErrInvalidParameter)
 	}
@@ -87,8 +91,11 @@ func (c *Client) IndicesMulti(ctx context.Context, loc qwx.Location, types []int
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: indices requires coordinates", qwx.ErrInvalidLocation)
 	}
+	if err := lang.Validate(); err != nil {
+		return nil, err
+	}
 	typeSeg := indicesTypeSegment(types)
-	p := cachekey.Params{Lang: lang}
+	p := cachekey.Params{Lang: lang.API}
 	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("type", typeSeg)
