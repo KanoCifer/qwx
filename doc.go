@@ -79,6 +79,17 @@
 //
 // 单次请求要临时绕过缓存，用 [WithTTLOverride]。
 //
+// # 日志
+//
+// SDK 用标准库 [log/slog]，不注入 logger 时不产生任何输出：
+//
+//	base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
+//	    qwx.WithLogger(slog.Default()),
+//	)
+//
+// 级别由 handler 决定。日志里有端点、路径、状态码、耗时与缓存键，
+// 没有认证凭据，也没有响应体。
+//
 // # 并发
 //
 // [Client] 无状态，可并发共享。所有方法都接受 [context.Context]。

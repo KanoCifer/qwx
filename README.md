@@ -16,6 +16,7 @@ Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，�
 - **两种认证**：JWT（Ed25519 签名，官方推荐）与 API KEY
 - **零依赖**：核心包只用标准库，`go.mod` 没有 `require`
 - **缓存可插拔**：定义 `Cache` 接口，Redis / 内存 / 自定义都行
+- **日志可插拔**：用标准库 `log/slog`，不注入就不输出
 - **错误可分类**：用 `errors.Is` 判断错误类别，不用解析字符串
 - **并发安全**：`Client` 无状态，可直接共享
 
@@ -505,6 +506,32 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 用 `qwx.WithTTLOverride(ctx, 0)`，优先级最高。
 
 > 改 TTL 不改缓存键：已写入的旧条目按写入时的 TTL 到期，想立刻生效要换缓存实例或手动清键。
+
+### 日志
+
+```go
+import "github.com/KanoCifer/qwx"
+
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithLogger(slog.Default()))
+```
+
+级别由 handler 决定，SDK 不再过滤。记什么：
+
+| 级别 | 消息 | 触发时机 |
+| --- | --- | --- |
+| Debug | `cache hit` / `cache miss` | 缓存命中与未命中 |
+| Warn | `cache read failed` / `cache write failed` | 缓存故障，请求降级为直连上游 |
+| Info | `upstream request` | 上游返回 2xx |
+| Warn | `upstream rejected` | 上游返回 4xx |
+| Error | `upstream rejected` | 上游返回 5xx |
+| Warn | `upstream retry` | 5xx 或网络错误触发重试 |
+| Error | `upstream request failed` | 网络错误、超时 |
+| Error | `decode response failed` | 响应不是合法 JSON |
+
+字段有 `endpoint`、`path`、`status`、`duration_ms`、`cache_key`、`attempt` 等。
+认证凭据走请求头，不进日志；响应体也不进日志；错误文本里的 URL 会剥掉查询串。
+
+默认 logger 是 `slog.DiscardHandler`：不构造字段，每个请求的额外开销只有一次 `Enabled` 调用。
 
 ### 错误处理
 

@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/KanoCifer/qwx"
@@ -34,7 +35,13 @@ func main() {
 	}
 
 	// 生产环境建议注入 Redis 等共享缓存；开发时用内置的内存缓存即可。
-	base, err := qwx.NewClient(auth, host, qwx.WithCache(qwx.NewMemoryCache()))
+	//
+	// 注入 slog.Default()：上游请求、缓存命中、重试会进日志。
+	// 不注入 logger 时 SDK 一个字节都不输出。
+	base, err := qwx.NewClient(auth, host,
+		qwx.WithCache(qwx.NewMemoryCache()),
+		qwx.WithLogger(slog.Default()),
+	)
 	if err != nil {
 		log.Fatalf("客户端初始化失败: %v", err)
 	}

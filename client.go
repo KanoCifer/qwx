@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,6 +30,7 @@ type Client struct {
 	auth      Auth
 	cache     Cache
 	ttlPolicy TTLPolicy
+	logger    *slog.Logger
 	now       func() time.Time
 }
 
@@ -105,10 +107,12 @@ func NewClient(auth Auth, apiHost string, opts ...Option) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	c := &Client{
 		apiHost: host,
 		http:    &http.Client{Timeout: DefaultTimeout},
 		auth:    auth,
+		logger:  discardLogger(),
 		now:     time.Now,
 	}
 	for _, opt := range opts {
@@ -158,10 +162,20 @@ func (c *Client) Do(ctx context.Context, req Request, out any) error {
 
 	if useCache {
 		hit, ok, err := c.cache.Get(ctx, req.CacheKey)
-		if err == nil && ok {
-			return decode(hit, out)
+		switch {
+		case err != nil:
+			// 缓存读失败不该让业务请求失败，降级为直接请求上游。
+			c.logCacheFailure(ctx, req, "cache read failed", err)
+		case ok:
+			c.logCacheHit(ctx, req)
+			if err := decode(hit, out); err != nil {
+				c.logDecodeFailure(ctx, req, err)
+				return err
+			}
+			return nil
+		default:
+			c.logCacheMiss(ctx, req)
 		}
-		// 缓存读失败不该让业务请求失败，降级为直接请求上游。
 	}
 
 	payload, err := c.fetch(ctx, req)
@@ -171,10 +185,16 @@ func (c *Client) Do(ctx context.Context, req Request, out any) error {
 
 	if useCache {
 		// 缓存写失败同样不该让业务请求失败，响应已经拿到了。
-		_ = c.cache.Set(ctx, req.CacheKey, payload, ttl)
+		if err := c.cache.Set(ctx, req.CacheKey, payload, ttl); err != nil {
+			c.logCacheFailure(ctx, req, "cache write failed", err)
+		}
 	}
 
-	return decode(payload, out)
+	if err := decode(payload, out); err != nil {
+		c.logDecodeFailure(ctx, req, err)
+		return err
+	}
+	return nil
 }
 
 // resolveTTL 决定本次请求的缓存时长。
@@ -206,12 +226,14 @@ func decode(payload []byte, out any) error {
 }
 
 // 带退避，重试的HTTP请求
-func doWithRetry(ctx context.Context, cli *http.Client, req *http.Request) (*http.Response, error) {
+//
+// 重试是上游 5xx 或网络错误触发的，每次重试前记一条日志。
+func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
 	for i := 0; i <= maxRetry; i++ {
-		resp, err = cli.Do(req)
+		resp, err = c.http.Do(httpReq)
 		if err == nil && resp.StatusCode < 500 {
 			return resp, nil
 		}
@@ -228,6 +250,8 @@ func doWithRetry(ctx context.Context, cli *http.Client, req *http.Request) (*htt
 			resp.Body.Close()
 		}
 
+		c.logRetry(ctx, req, i+1, responseStatus(resp), err)
+
 		select {
 		case <-time.After(time.Duration(i+1) * time.Second):
 		case <-ctx.Done():
@@ -236,6 +260,14 @@ func doWithRetry(ctx context.Context, cli *http.Client, req *http.Request) (*htt
 	}
 
 	return resp, err
+}
+
+// responseStatus 取响应状态码，响应为空时返回 0。
+func responseStatus(resp *http.Response) int {
+	if resp == nil {
+		return 0
+	}
+	return resp.StatusCode
 }
 
 // fetch 发起一次真实的上游请求，返回原始响应体。
@@ -251,25 +283,33 @@ func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
 	}
 	httpReq, err := http.NewRequestWithContext(ctx, method, u, nil)
 	if err != nil {
+		c.logLocalFailure(ctx, req, "build request failed", err)
 		return nil, fmt.Errorf("%w: build request: %v", ErrInvalidConfig, err)
 	}
 	if err := c.auth.Apply(httpReq); err != nil {
+		c.logLocalFailure(ctx, req, "sign request failed", err)
 		return nil, err
 	}
 
-	resp, err := doWithRetry(ctx, c.http, httpReq)
+	start := time.Now()
+	resp, err := c.doWithRetry(ctx, req, httpReq)
 	if err != nil {
+		c.logUpstreamFailure(ctx, req, err, time.Since(start))
 		return nil, fmt.Errorf("%w: %v", ErrUpstreamUnavailable, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		c.logUpstreamFailure(ctx, req, err, time.Since(start))
 		return nil, fmt.Errorf("%w: read body: %v", ErrUpstreamUnavailable, err)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, newUpstreamError(resp.StatusCode, body)
+		ue := newUpstreamError(resp.StatusCode, body)
+		c.logUpstreamRejected(ctx, req, ue, time.Since(start))
+		return nil, ue
 	}
+	c.logUpstream(ctx, req, resp.StatusCode, time.Since(start))
 	return body, nil
 }
