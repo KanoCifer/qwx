@@ -3,7 +3,7 @@ module github.com/KanoCifer/qwx/rediscache
 go 1.26.0
 
 require (
-	github.com/KanoCifer/qwx v0.9.0
+	github.com/KanoCifer/qwx v0.9.1
 	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/redis/go-redis/v9 v9.23.0
 )
