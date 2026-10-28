@@ -3,7 +3,7 @@
 // 运行前需要设置环境变量：
 //
 //	QWEATHER_API_KEY   你的 API KEY（或改用 JWT，见 README）
-//	QWEATHER_BASE_URL  可选，专属 API Host
+//	QWEATHER_API_HOST  控制台设置页里的专属 API Host（必填）
 package main
 
 import (
@@ -23,21 +23,18 @@ func main() {
 	if key == "" {
 		log.Fatal("请设置 QWEATHER_API_KEY")
 	}
+	host := os.Getenv("QWEATHER_API_HOST")
+	if host == "" {
+		log.Fatal("请设置 QWEATHER_API_HOST（控制台设置页里的专属 API Host）")
+	}
 
 	auth, err := qwx.NewAPIKeyAuth(key)
 	if err != nil {
 		log.Fatalf("认证初始化失败: %v", err)
 	}
 
-	opts := []qwx.Option{
-		// 生产环境建议注入 Redis 等共享缓存；开发时用内置的内存缓存即可。
-		qwx.WithCache(qwx.NewMemoryCache()),
-	}
-	if host := os.Getenv("QWEATHER_BASE_URL"); host != "" {
-		opts = append(opts, qwx.WithBaseURL(host))
-	}
-
-	base, err := qwx.NewClient(auth, opts...)
+	// 生产环境建议注入 Redis 等共享缓存；开发时用内置的内存缓存即可。
+	base, err := qwx.NewClient(auth, host, qwx.WithCache(qwx.NewMemoryCache()))
 	if err != nil {
 		log.Fatalf("客户端初始化失败: %v", err)
 	}

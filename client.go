@@ -6,15 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
-
-// DefaultBaseURL 是官方默认的 API Host。
-//
-// 控制台可以为每个项目分配专属 Host（如 abcxyz.qweatherapi.com），
-// 专属 Host 通常更快也更稳定，优先用它。
-const DefaultBaseURL = "https://devapi.qweather.com"
 
 // DefaultTimeout 是 HTTP 请求的默认超时。
 const DefaultTimeout = 30 * time.Second
@@ -26,7 +21,7 @@ const DefaultTimeout = 30 * time.Second
 //
 // 接口族在各自的子包里，用同一个 Client 构造服务客户端。
 type Client struct {
-	baseURL string
+	apiHost string
 	http    *http.Client
 	auth    Auth
 	cache   Cache
@@ -35,14 +30,6 @@ type Client struct {
 
 // Option 配置 [Client]。
 type Option func(*Client)
-
-// WithBaseURL 指定 API Host。
-//
-// 可以带 scheme（"https://abcxyz.qweatherapi.com"），也可以只给 host
-// （"abcxyz.qweatherapi.com"），后者会自动补上 https。
-func WithBaseURL(baseURL string) Option {
-	return func(c *Client) { c.baseURL = strings.TrimRight(baseURL, "/") }
-}
 
 // WithHTTPClient 注入自定义的 [http.Client]。
 //
@@ -68,6 +55,9 @@ func WithAuth(a Auth) Option {
 //
 // 传入 nil 等同于不缓存。缓存的键由端点包生成（见各端点方法的 CacheKey 说明），
 // TTL 由端点语义决定，调用方无需关心。
+//
+// 缓存键不含 API Host：不同 Host 对应不同开发者账号，一个 Cache 实例
+// 不应跨账号共用，否则会串味。
 func WithCache(cache Cache) Option {
 	return func(c *Client) { c.cache = cache }
 }
@@ -83,13 +73,25 @@ func WithClock(now func() time.Time) Option {
 
 // NewClient 构造 [Client]。
 //
-// auth 为必填 —— 没有认证方式所有请求都会被上游拒绝。cache 可为 nil。
-func NewClient(auth Auth, opts ...Option) (*Client, error) {
+// auth 为必填 —— 没有认证方式所有请求都会被上游拒绝。apiHost 同样是必填：
+// 控制台「设置」页分配的专属 API Host，形如 "abcxyz.qweatherapi.com"。
+// 公共域名（api.qweather.com、devapi.qweather.com、geoapi.qweather.com）
+// 自 2026 年起陆续停服，所以这里没有默认值。
+//
+// apiHost 可以只给 host（自动补 "https://"），也可以带 scheme；尾部斜杠会被去掉。
+// 空串或缺 host 段返回 [ErrInvalidConfig]。
+//
+// cache 可为 nil。
+func NewClient(auth Auth, apiHost string, opts ...Option) (*Client, error) {
 	if auth == nil {
 		return nil, fmt.Errorf("%w: auth is required", ErrInvalidConfig)
 	}
+	host, err := normalizeAPIHost(apiHost)
+	if err != nil {
+		return nil, err
+	}
 	c := &Client{
-		baseURL: DefaultBaseURL,
+		apiHost: host,
 		http:    &http.Client{Timeout: DefaultTimeout},
 		auth:    auth,
 		now:     time.Now,
@@ -97,13 +99,36 @@ func NewClient(auth Auth, opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(c)
 	}
-	if c.baseURL == "" {
-		return nil, fmt.Errorf("%w: base URL is required", ErrInvalidConfig)
-	}
-	if !strings.Contains(c.baseURL, "://") {
-		c.baseURL = "https://" + c.baseURL
-	}
 	return c, nil
+}
+
+// normalizeAPIHost 规整控制台分配的 API Host。
+//
+// 只给 host 时补 "https://"，带 scheme 时原样保留 scheme，去掉尾部斜杠。
+// Host 本身不校验是不是 qweatherapi.com —— 网关、自建代理、测试用假
+// 上游都要能用。
+func normalizeAPIHost(raw string) (string, error) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", fmt.Errorf("%w: api host is required (控制台设置页的专属 API Host)", ErrInvalidConfig)
+	}
+	if !strings.Contains(s, "://") {
+		s = "https://" + s
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return "", fmt.Errorf("%w: invalid api host %q: %v", ErrInvalidConfig, raw, err)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("%w: invalid api host %q: missing host", ErrInvalidConfig, raw)
+	}
+	u.Path = strings.TrimRight(u.Path, "/")
+	u.RawQuery = ""
+	u.Fragment = ""
+	// ForceQuery 与 RawQuery 是两个字段："host?" 解析后 RawQuery 为空但
+	// ForceQuery 为真，不清它会保留尾部问号，拼路径时整个路径会被吞进查询串。
+	u.ForceQuery = false
+	return u.String(), nil
 }
 
 // Do 发送一次上游请求并把响应解析到 out。
@@ -147,7 +172,7 @@ func decode(payload []byte, out any) error {
 
 // fetch 发起一次真实的上游请求，返回原始响应体。
 func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
-	u := c.baseURL + req.Path
+	u := c.apiHost + req.Path
 	if len(req.Query) > 0 {
 		u += "?" + req.Query.Encode()
 	}

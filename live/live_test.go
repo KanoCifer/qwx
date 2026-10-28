@@ -4,7 +4,7 @@
 //
 // 用法：
 //
-//	QWEATHER_BASE_URL=https://your-host.qweatherapi.com \
+//	QWEATHER_API_HOST=https://your-host.qweatherapi.com \
 //	QWEATHER_JWT_PRIVATE_KEY="$(cat ed25519-private.pem)" \
 //	QWEATHER_KEY_ID=YOUR_KEY_ID \
 //	QWEATHER_PROJECT_ID=YOUR_PROJECT_ID \
@@ -26,10 +26,10 @@ import (
 
 func liveClient(t *testing.T) *qwx.Client {
 	t.Helper()
-	base := os.Getenv("QWEATHER_BASE_URL")
+	host := os.Getenv("QWEATHER_API_HOST")
 	priv := os.Getenv("QWEATHER_JWT_PRIVATE_KEY")
-	if base == "" || priv == "" {
-		t.Skip("未设置 QWEATHER_BASE_URL / QWEATHER_JWT_PRIVATE_KEY，跳过")
+	if host == "" || priv == "" {
+		t.Skip("未设置 QWEATHER_API_HOST / QWEATHER_JWT_PRIVATE_KEY，跳过")
 	}
 	auth, err := qwx.NewJWTAuth(qwx.JWTConfig{
 		PrivateKeyPEM: priv,
@@ -39,7 +39,7 @@ func liveClient(t *testing.T) *qwx.Client {
 	if err != nil {
 		t.Fatalf("NewJWTAuth: %v", err)
 	}
-	c, err := qwx.NewClient(auth, qwx.WithBaseURL(base))
+	c, err := qwx.NewClient(auth, host)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}

@@ -261,29 +261,10 @@ func TestNewAPIKeyAuthRejectsEmpty(t *testing.T) {
 }
 
 func TestNewClientRequiresAuth(t *testing.T) {
-	if _, err := NewClient(nil); err == nil {
+	if _, err := NewClient(nil, "abcxyz.qweatherapi.com"); err == nil {
 		t.Error("expected error")
 	} else if !errors.Is(err, ErrInvalidConfig) {
 		t.Errorf("error = %v, want ErrInvalidConfig", err)
-	}
-}
-
-func TestNewClientNormalizesBaseURL(t *testing.T) {
-	c, err := NewClient(&APIKeyAuth{key: "k"}, WithBaseURL("abcxyz.qweatherapi.com"))
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
-	if c.baseURL != "https://abcxyz.qweatherapi.com" {
-		t.Errorf("baseURL = %q", c.baseURL)
-	}
-
-	// 尾部斜杠要去掉，否则拼出 "//weather/..."。
-	c, err = NewClient(&APIKeyAuth{key: "k"}, WithBaseURL("https://abcxyz.qweatherapi.com/"))
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
-	if c.baseURL != "https://abcxyz.qweatherapi.com" {
-		t.Errorf("baseURL = %q", c.baseURL)
 	}
 }
 

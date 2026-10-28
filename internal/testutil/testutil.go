@@ -67,8 +67,7 @@ func NewClient(t *testing.T, fs *FakeServer, opts ...qwx.Option) *qwx.Client {
 	if err != nil {
 		t.Fatalf("NewAPIKeyAuth: %v", err)
 	}
-	base := []qwx.Option{qwx.WithBaseURL(fs.URL)}
-	c, err := qwx.NewClient(auth, append(base, opts...)...)
+	c, err := qwx.NewClient(auth, fs.URL, opts...)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}

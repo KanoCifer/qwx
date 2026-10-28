@@ -19,14 +19,23 @@
 //
 // # 用法
 //
-// 先构造基础客户端，再用它构造各接口族的服务客户端：
+// 先构造基础客户端，再用它构造各接口族的服务客户端。基础客户端需要认证方式
+// 和控制台分配的专属 API Host，两者都必填：
 //
-//	base, err := qwx.NewClient(auth)
+//	auth, err := qwx.NewAPIKeyAuth("YOUR_API_KEY")
+//	if err != nil {
+//		return err
+//	}
+//	base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com")
 //	if err != nil {
 //		return err
 //	}
 //	w := weather.New(base)
 //	cur, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
+//
+// API Host 形如 abcxyz.qweatherapi.com，在控制台「设置」页查看。公共域名
+// （devapi.qweather.com、api.qweather.com、geoapi.qweather.com）自 2026 年起
+// 陆续停服，SDK 不提供默认值。只给 host 时自动补 "https://"。
 //
 // # 认证
 //

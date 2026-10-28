@@ -46,7 +46,8 @@ if err != nil {
     log.Fatal(err)
 }
 
-base, err := qwx.NewClient(auth)
+// API Host 必传：控制台「设置」页里的专属地址，形如 abcxyz.qweatherapi.com。
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com")
 if err != nil {
     log.Fatal(err)
 }
@@ -69,6 +70,10 @@ if err != nil {
 
 fmt.Println(current.Condition.Text, current.Temperature.Value, current.Temperature.Unit)
 ```
+
+API Host 只能从控制台「设置」页取，没有默认值：公共域名 `devapi.qweather.com`、
+`api.qweather.com`、`geoapi.qweather.com` 自 2026 年起陆续停服。Host 只写域名
+不带 scheme 时，SDK 自动补 `https://`。
 
 ### 用 JWT
 
@@ -100,17 +105,17 @@ JWT 有效期 15 分钟，SDK 会在过期前自动重签，调用方不用管�
 SDK 不内置缓存实现，注入你已有的：
 
 ```go
-base, err := qwx.NewClient(auth, qwx.WithCache(myRedisCache))
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(myRedisCache))
 ```
 
 也可以先用内置的内存缓存开发调试：
 
 ```go
-base, err := qwx.NewClient(auth, qwx.WithCache(qwx.NewMemoryCache()))
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(qwx.NewMemoryCache()))
 ```
 
 缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），
-TTL 按端点的数据更新节奏设定。
+TTL 按端点的数据更新节奏设定。缓存键不含 API Host，一个 Cache 实例不要跨账号共用。
 
 ## 支持的接口
 
@@ -137,6 +142,13 @@ TTL 按端点的数据更新节奏设定。
 `/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
 
 ## 几个容易踩的坑
+
+**API Host 必传，不能用公共域名。** 控制台「设置」页里的专属 Host 形如
+`abcxyz.qweatherapi.com`，`NewClient(auth, host)` 的第二个参数就是它。
+公共域名 `devapi.qweather.com`（2026-01 停服）、`api.qweather.com`、
+`geoapi.qweather.com`（2026-06 停服）会陆续不可用。
+注意 GeoAPI 在专属 Host 下的路径是 `/geo/v2/*`，与旧公共域名的 `/v2/*` 不同，
+SDK 已按新路径发请求。
 
 **坐标顺序相反。** 新一代接口用路径参数 `{纬度}/{经度}`，v7 与 GeoAPI 用查询参数
 `"经度,纬度"`。写反了上游回 400 `invalidParams:["longitude","latitude"]`，
