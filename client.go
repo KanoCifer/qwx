@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -225,17 +226,58 @@ func decode(payload []byte, out any) error {
 	return nil
 }
 
+func parseRetryAfter(v string, now time.Time) (time.Duration, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0, false
+	}
+	// 格式一：秒数
+	if secs, err := strconv.Atoi(v); err == nil {
+		if secs < 0 {
+			return 0, false
+		}
+		return time.Duration(secs) * time.Second, true
+	}
+	// 格式二：HTTP 日期（http.ParseTime 支持 RFC1123/RFC850/ANSI C 三种）
+	if t, err := http.ParseTime(v); err == nil {
+		d := t.Sub(now)
+		if d < 0 {
+			d = 0 // 时间已过，可以立即重试
+		}
+		return d, true
+	}
+	return 0, false
+}
+
 // 带退避，重试的HTTP请求
 //
 // 重试是上游 5xx 或网络错误触发的，每次重试前记一条日志。
 func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
+	var retryDelay time.Duration = 0
 
 	for i := 0; i <= maxRetry; i++ {
+
+		if i > 0 && httpReq.GetBody != nil {
+			body, err := httpReq.GetBody()
+			if err != nil {
+				return nil, fmt.Errorf("retry: rebuild body: %w", err)
+			}
+			httpReq.Body = body
+		}
 		resp, err = c.http.Do(httpReq)
-		if err == nil && resp.StatusCode < 500 {
+		if err == nil && resp.StatusCode < 500 && resp.StatusCode != 429 {
 			return resp, nil
+		}
+
+		retryDelay = time.Duration(i+1) * time.Second
+
+		if resp != nil && resp.StatusCode == 429 {
+			retryAfter := resp.Header.Get("Retry-After")
+			if delay, isGet := parseRetryAfter(retryAfter, time.Now()); isGet {
+				retryDelay = delay
+			}
 		}
 
 		// 最后一轮或调用方已断开：不再重试
@@ -243,7 +285,7 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 			if ctx.Err() != nil && resp != nil {
 				resp.Body.Close()
 			}
-			return resp, err
+			return nil, err
 		}
 
 		if resp != nil {
@@ -253,7 +295,7 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 		c.logRetry(ctx, req, i+1, responseStatus(resp), err)
 
 		select {
-		case <-time.After(time.Duration(i+1) * time.Second):
+		case <-time.After(time.Duration(retryDelay)):
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
