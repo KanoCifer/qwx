@@ -80,7 +80,9 @@ func TestDoCacheFailureDegradesGracefully(t *testing.T) {
 	}
 }
 
-func TestDoUpstreamErrorClassification(t *testing.T) {
+func TestDoSurfacesUpstreamError(t *testing.T) {
+	// Do 要把上游的错误原样包成 *UpstreamError，并按状态码归类。
+	// 逐个状态码走完整条链路：HTTP 响应 → UpstreamError → sentinel。
 	cases := []struct {
 		name   string
 		status int
@@ -124,7 +126,8 @@ func TestDoUpstreamErrorClassification(t *testing.T) {
 	}
 }
 
-func TestDoUpstreamErrorParsesInvalidParams(t *testing.T) {
+func TestDoSurfacesUpstreamInvalidParams(t *testing.T) {
+	// 新一代会指出非法参数名，调用方靠它定位是经纬倒置还是别的。
 	body := `{"error":{"status":400,"title":"Invalid Parameters","invalidParams":["longitude","latitude"]}}`
 	fs := testutil.NewFakeServer(t, body)
 	fs.Handler = func(w http.ResponseWriter, r *http.Request) {
@@ -151,6 +154,14 @@ func TestDoRejectsInvalidJSON(t *testing.T) {
 	err := c.Do(context.Background(), qwx.Request{Path: "/x"}, &out)
 	if !errors.Is(err, qwx.ErrInvalidResponse) {
 		t.Errorf("error = %v, want ErrInvalidResponse", err)
+	}
+}
+
+func TestNewClientRequiresAuth(t *testing.T) {
+	if _, err := qwx.NewClient(nil, "abcxyz.qweatherapi.com"); err == nil {
+		t.Error("expected error")
+	} else if !errors.Is(err, qwx.ErrInvalidConfig) {
+		t.Errorf("error = %v, want ErrInvalidConfig", err)
 	}
 }
 
