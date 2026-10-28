@@ -8,6 +8,7 @@
 //	QWEATHER_JWT_PRIVATE_KEY="$(cat ed25519-private.pem)" \
 //	QWEATHER_KEY_ID=YOUR_KEY_ID \
 //	QWEATHER_PROJECT_ID=YOUR_PROJECT_ID \
+//	QWEATHER_DEVELOPER_ID=YOUR_DEVELOPER_ID \
 //	go test -tags live -v -run TestLive ./...
 package live
 
@@ -36,6 +37,7 @@ func liveClient(t *testing.T) *qwx.Client {
 		PrivateKeyPEM: priv,
 		KeyID:         os.Getenv("QWEATHER_KEY_ID"),
 		ProjectID:     os.Getenv("QWEATHER_PROJECT_ID"),
+		DeveloperID:   os.Getenv("QWEATHER_DEVELOPER_ID"),
 	})
 	if err != nil {
 		t.Fatalf("NewJWTAuth: %v", err)

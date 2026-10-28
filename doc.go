@@ -50,7 +50,8 @@
 // 官方支持两种认证方式，本包都支持，但**不要同时使用**：
 //
 //   - JWT（Ed25519 签名，推荐）：见 [NewJWTAuth]。需要控制台生成的
-//     Ed25519 私钥，以及凭据的 Key ID、Project ID、Developer ID。
+//     Ed25519 私钥，以及凭据的 Key ID、Project ID 与 Developer ID。
+//     三项都必填，缺任一项返回 [ErrInvalidConfig]。
 //   - API KEY：见 [NewAPIKeyAuth]。官方已公告从 2027 年 1 月 1 日起
 //     限制用 API KEY 认证的每日请求量，新项目建议直接用 JWT。
 //

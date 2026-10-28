@@ -114,6 +114,7 @@ func TestJWTAuthCachesToken(t *testing.T) {
 		PrivateKeyPEM: privPEM,
 		KeyID:         "K",
 		ProjectID:     "P",
+		DeveloperID:   "D",
 	})
 	if err != nil {
 		t.Fatalf("NewJWTAuth: %v", err)
@@ -138,6 +139,7 @@ func TestJWTAuthRefreshesExpiredToken(t *testing.T) {
 		PrivateKeyPEM: privPEM,
 		KeyID:         "K",
 		ProjectID:     "P",
+		DeveloperID:   "D",
 		TokenTTL:      2 * time.Minute,
 	})
 	if err != nil {
@@ -166,9 +168,10 @@ func TestJWTAuthRequiresConfig(t *testing.T) {
 	privPEM, _ := testPrivateKeyPEM(t)
 
 	cases := []JWTConfig{
-		{KeyID: "K", ProjectID: "P"},
-		{PrivateKeyPEM: privPEM, ProjectID: "P"},
-		{PrivateKeyPEM: privPEM, KeyID: "K"},
+		{KeyID: "K", ProjectID: "P", DeveloperID: "D"},
+		{PrivateKeyPEM: privPEM, ProjectID: "P", DeveloperID: "D"},
+		{PrivateKeyPEM: privPEM, KeyID: "K", DeveloperID: "D"},
+		{PrivateKeyPEM: privPEM, KeyID: "K", ProjectID: "P"},
 	}
 	for i, cfg := range cases {
 		if _, err := NewJWTAuth(cfg); err == nil {
@@ -189,6 +192,7 @@ func TestJWTAuthRejectsBadKey(t *testing.T) {
 			PrivateKeyPEM: pemStr,
 			KeyID:         "K",
 			ProjectID:     "P",
+			DeveloperID:   "D",
 		}); err == nil {
 			t.Errorf("pem %q: expected error", pemStr)
 		}
@@ -204,6 +208,7 @@ func TestJWTAuthAcceptsEscapedNewlines(t *testing.T) {
 		PrivateKeyPEM: escaped,
 		KeyID:         "K",
 		ProjectID:     "P",
+		DeveloperID:   "D",
 	}); err != nil {
 		t.Fatalf("NewJWTAuth with escaped newlines: %v", err)
 	}
@@ -215,6 +220,7 @@ func TestJWTAuthAppliesHeader(t *testing.T) {
 		PrivateKeyPEM: privPEM,
 		KeyID:         "K",
 		ProjectID:     "P",
+		DeveloperID:   "D",
 	})
 	if err != nil {
 		t.Fatalf("NewJWTAuth: %v", err)

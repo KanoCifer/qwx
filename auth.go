@@ -33,7 +33,7 @@ type JWTAuth struct {
 	kid string
 	// sub 是凭据的 Project ID。
 	sub string
-	// iss 是开发者的 Developer ID。为空则不带该字段。
+	// iss 是开发者的 Developer ID（payload 的签发者）。
 	iss string
 
 	// tokenTTL 是 token 的有效期，默认 15 分钟（官方口径）。
@@ -63,13 +63,20 @@ type JWTConfig struct {
 	// ProjectID 是凭据的 Project ID，对应 JWT payload 的 sub。
 	ProjectID string
 	// DeveloperID 是开发者的 Developer ID，对应 JWT payload 的 iss。
-	// 可选。
+	//
+	// 官方口径是必填：iss 是签发者，上游按它校验凭据归属。值在控制台
+	// 「设置」页查看，形如 Q 开头的 10 位字母数字。SDK 只校验非空，
+	// 不校验格式 —— 上游口径可能调整，写死格式容易误杀合法配置。
 	DeveloperID string
 	// TokenTTL 覆盖默认的 15 分钟有效期。
 	TokenTTL time.Duration
 }
 
 // NewJWTAuth 构造 [JWTAuth]。
+//
+// 私钥、Key ID、Project ID、Developer ID 四项都必填，缺任一项返回
+// [ErrInvalidConfig]。Developer ID 对应 payload 的 iss，官方口径下上游
+// 按它校验凭据归属，缺失会导致 401。
 func NewJWTAuth(cfg JWTConfig) (*JWTAuth, error) {
 	if cfg.PrivateKeyPEM == "" {
 		return nil, fmt.Errorf("%w: empty private key", ErrInvalidConfig)
@@ -79,6 +86,9 @@ func NewJWTAuth(cfg JWTConfig) (*JWTAuth, error) {
 	}
 	if cfg.ProjectID == "" {
 		return nil, fmt.Errorf("%w: empty project ID", ErrInvalidConfig)
+	}
+	if cfg.DeveloperID == "" {
+		return nil, fmt.Errorf("%w: empty developer ID", ErrInvalidConfig)
 	}
 
 	key, err := parseEd25519PrivateKey(cfg.PrivateKeyPEM)
@@ -153,8 +163,8 @@ func (a *JWTAuth) Token() (string, error) {
 
 // sign 生成一个 EdDSA JWT。
 //
-// payload 字段与官方口径一致：iat 回退 30 秒容忍时钟偏差，
-// exp = iat + tokenTTL。
+// payload 字段与官方口径一致：iss 是签发者（Developer ID），sub 是凭据的
+// 项目 ID，iat 回退 30 秒容忍时钟偏差，exp = iat + tokenTTL。
 func (a *JWTAuth) sign(now time.Time) (string, error) {
 	iat := now.Add(-a.clockSkew)
 	exp := iat.Add(a.tokenTTL)
@@ -164,9 +174,7 @@ func (a *JWTAuth) sign(now time.Time) (string, error) {
 		"iat": iat.Unix(),
 		"exp": exp.Unix(),
 		"sub": a.sub,
-	}
-	if a.iss != "" {
-		payload["iss"] = a.iss
+		"iss": a.iss,
 	}
 
 	headerJSON, err := json.Marshal(header)
