@@ -24,11 +24,12 @@ const (
 //
 // 接口族在各自的子包里，用同一个 Client 构造服务客户端。
 type Client struct {
-	apiHost string
-	http    *http.Client
-	auth    Auth
-	cache   Cache
-	now     func() time.Time
+	apiHost   string
+	http      *http.Client
+	auth      Auth
+	cache     Cache
+	ttlPolicy TTLPolicy
+	now       func() time.Time
 }
 
 // Option 配置 [Client]。
@@ -57,12 +58,28 @@ func WithAuth(a Auth) Option {
 // WithCache 注入缓存实现。
 //
 // 传入 nil 等同于不缓存。缓存的键由端点包生成（见各端点方法的 CacheKey 说明），
-// TTL 由端点语义决定，调用方无需关心。
+// TTL 默认由端点语义决定，需要调整时用 [WithTTLPolicy]。
 //
 // 缓存键不含 API Host：不同 Host 对应不同开发者账号，一个 Cache 实例
 // 不应跨账号共用，否则会串味。
 func WithCache(cache Cache) Option {
 	return func(c *Client) { c.cache = cache }
+}
+
+// WithTTLPolicy 设置按端点区分的缓存时长策略。
+//
+// 策略优先于端点包内置的默认时长；返回 0 表示该端点不缓存。
+// 不设置时行为与默认一致，各端点用自己内置的 TTL。
+//
+// 策略在每次请求时求值，可以按时间或负载动态调整，实现方要保证并发安全。
+//
+// 缓存键不受策略影响：改 TTL 不会让已写入的旧条目提前失效。
+func WithTTLPolicy(policy TTLPolicy) Option {
+	return func(c *Client) {
+		if policy != nil {
+			c.ttlPolicy = policy
+		}
+	}
 }
 
 // WithClock 注入时钟，供测试断言 JWT 的 iat/exp。
@@ -141,7 +158,10 @@ func normalizeAPIHost(raw string) (string, error) {
 //
 // out 为 nil 时只取原始响应体。
 func (c *Client) Do(ctx context.Context, req Request, out any) error {
-	if c.cache != nil && req.CacheKey != "" && req.TTL > 0 {
+	ttl := c.resolveTTL(ctx, req)
+	useCache := c.cache != nil && req.CacheKey != "" && ttl > 0
+
+	if useCache {
 		hit, ok, err := c.cache.Get(ctx, req.CacheKey)
 		if err == nil && ok {
 			return decode(hit, out)
@@ -154,12 +174,29 @@ func (c *Client) Do(ctx context.Context, req Request, out any) error {
 		return err
 	}
 
-	if c.cache != nil && req.CacheKey != "" && req.TTL > 0 {
+	if useCache {
 		// 缓存写失败同样不该让业务请求失败，响应已经拿到了。
-		_ = c.cache.Set(ctx, req.CacheKey, payload, req.TTL)
+		_ = c.cache.Set(ctx, req.CacheKey, payload, ttl)
 	}
 
 	return decode(payload, out)
+}
+
+// resolveTTL 决定本次请求的缓存时长。
+//
+// 优先级：单次上下文覆盖 > TTLPolicy > 端点包内置的默认时长。
+// 返回值 <= 0 表示本次不缓存。
+//
+// 端点为空表示该请求不参与策略匹配，策略不会被调用，
+// 缓存时长只由 Request.TTL 决定。
+func (c *Client) resolveTTL(ctx context.Context, req Request) time.Duration {
+	if d, ok := ttlOverrideFromContext(ctx); ok {
+		return d
+	}
+	if c.ttlPolicy == nil || req.Endpoint == "" {
+		return req.TTL
+	}
+	return c.ttlPolicy.TTL(req.Endpoint, req.TTL)
 }
 
 // decode 把响应体解析到 out。

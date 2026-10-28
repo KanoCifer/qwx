@@ -51,6 +51,17 @@
 // 本包不内置缓存实现，而是定义 [Cache] 接口由调用方注入（Redis、内存均可）。
 // 未注入时每次请求都打到上游。
 //
+// 缓存时长默认由端点包决定，可用 [WithTTLPolicy] 按端点覆盖：
+//
+//	base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
+//	    qwx.WithCache(cache),
+//	    qwx.WithTTLPolicy(qwx.TTLMap{
+//	        weather.EndpointCurrent: 30 * time.Second,
+//	    }),
+//	)
+//
+// 单次请求要临时绕过缓存，用 [WithTTLOverride]。
+//
 // # 并发
 //
 // [Client] 无状态，可并发共享。所有方法都接受 [context.Context]。

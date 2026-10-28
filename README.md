@@ -117,6 +117,23 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(qwx.New
 缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），
 TTL 按端点的数据更新节奏设定。缓存键不含 API Host，一个 Cache 实例不要跨账号共用。
 
+要按端点调 TTL，传一份策略：
+
+```go
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
+    qwx.WithCache(myRedisCache),
+    qwx.WithTTLPolicy(qwx.TTLMap{
+        weather.EndpointCurrent:    30 * time.Second,
+        airquality.EndpointCurrent: 0, // 该端点不缓存
+    }),
+)
+```
+
+端点常量在各端点包里（`weather.EndpointCurrent`、`geo.EndpointCity` 等）。
+单次请求要临时绕过缓存，用 `qwx.WithTTLOverride(ctx, 0)`。
+
+> 改 TTL 不改缓存键：已写入的旧条目按写入时的 TTL 到期，想立刻生效要换缓存实例或手动清键。
+
 ## 支持的接口
 
 | 包 | 方法 | 上游接口 |

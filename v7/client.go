@@ -12,17 +12,9 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
-)
-
-// 缓存时长：预警与分钟级降水对齐上游 5 分钟的更新节奏，潮汐与生活指数 1 小时。
-const (
-	alertCacheTTL    = 5 * time.Minute
-	minutelyCacheTTL = 5 * time.Minute
-	forecastCacheTTL = time.Hour
 )
 
 // Client 是旧一代接口的调用入口。
@@ -50,6 +42,8 @@ func New(base qwx.Doer) *Client {
 // 新一代只认坐标。两者数据结构完全不同，按需选择。
 //
 // 缓存键：`qwx:warning:v7:<location>` 加语言后缀。
+//
+// 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointWarnings] 覆盖。
 func (c *Client) Warnings(ctx context.Context, loc qwx.Location, lang string) (*WarningsResult, error) {
 	q := url.Values{}
 	if lang != "" {
@@ -62,6 +56,7 @@ func (c *Client) Warnings(ctx context.Context, loc qwx.Location, lang string) (*
 		Method:   "GET",
 		Path:     "/v7/warning/now",
 		Query:    q,
+		Endpoint: EndpointWarnings,
 		CacheKey: "qwx:warning:v7:" + loc.Query() + cachekey.Lang(lang),
 		TTL:      alertCacheTTL,
 	}, &out)
@@ -84,6 +79,8 @@ func (c *Client) Warnings(ctx context.Context, loc qwx.Location, lang string) (*
 // 用 UTC 日期会在北京时间 00:00–08:00 要到"昨天"，上游会回 400。
 //
 // 缓存键：`qwx:tide:<location>:<date>`。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointTide] 覆盖。
 func (c *Client) Tide(ctx context.Context, stationID, date string) (*TideResult, error) {
 	if stationID == "" {
 		return nil, fmt.Errorf("%w: empty tide station ID", qwx.ErrInvalidParameter)
@@ -100,6 +97,7 @@ func (c *Client) Tide(ctx context.Context, stationID, date string) (*TideResult,
 		Method:   "GET",
 		Path:     "/v7/ocean/tide",
 		Query:    q,
+		Endpoint: EndpointTide,
 		CacheKey: "qwx:tide:" + stationID + ":" + date,
 		TTL:      forecastCacheTTL,
 	}, &out)
@@ -135,6 +133,8 @@ func validateDate(date string) error {
 // loc 必须是坐标对：上游对裸经度（如 "121.47"）一律回 400。
 //
 // 缓存键：`qwx:indices:<location>:t<type>:d<days>` 加语言后缀。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointIndices] 覆盖。
 func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, lang string) (*IndicesResult, error) {
 	if typ < IndicesTypeAll || typ > IndicesMaxType {
 		return nil, fmt.Errorf("%w: indices type %d out of range [0,%d]", qwx.ErrInvalidParameter, typ, IndicesMaxType)
@@ -157,6 +157,7 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 		Method:   "GET",
 		Path:     "/v7/indices/" + strconv.Itoa(days) + "d",
 		Query:    q,
+		Endpoint: EndpointIndices,
 		CacheKey: "qwx:indices:" + loc.Query() + ":t" + strconv.Itoa(typ) + ":d" + strconv.Itoa(days) + cachekey.Lang(lang),
 		TTL:      forecastCacheTTL,
 	}, &out)
@@ -179,6 +180,8 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 //  3. **粒度是 5 分钟**：未来 2 小时共 24 条，上游每 5 分钟更新一次。
 //
 // 缓存键：`qwx:minutely:<lon>,<lat>` 加语言后缀。TTL 与上游 5 分钟的更新节奏对齐。
+//
+// 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointMinutely] 覆盖。
 func (c *Client) Minutely(ctx context.Context, loc qwx.Location, lang string) (*MinutelyResult, error) {
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: minutely forecast requires coordinates", qwx.ErrInvalidLocation)
@@ -194,6 +197,7 @@ func (c *Client) Minutely(ctx context.Context, loc qwx.Location, lang string) (*
 		Method:   "GET",
 		Path:     "/v7/minutely/5m",
 		Query:    q,
+		Endpoint: EndpointMinutely,
 		CacheKey: "qwx:minutely:" + loc.Query() + cachekey.Lang(lang),
 		TTL:      minutelyCacheTTL,
 	}, &out)

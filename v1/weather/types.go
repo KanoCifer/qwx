@@ -2,6 +2,7 @@ package weather
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
@@ -13,6 +14,24 @@ const (
 	MaxHourlyHours = 240
 	// MaxDailyDays 每日预报最多 10 天。
 	MaxDailyDays = 10
+)
+
+// 天气端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
+const (
+	// EndpointCurrent 是实时天气端点。
+	EndpointCurrent = qwx.Endpoint("weather/v1/current")
+	// EndpointHourly 是逐小时预报端点。
+	EndpointHourly = qwx.Endpoint("weather/v1/hourly")
+	// EndpointDaily 是逐日预报端点。
+	EndpointDaily = qwx.Endpoint("weather/v1/daily")
+)
+
+// 天气接口的默认缓存时长。
+//
+// 按上游的数据更新节奏取值：实况 10 分钟、逐时/逐日 1 小时。
+const (
+	currentCacheTTL  = 10 * time.Minute
+	forecastCacheTTL = time.Hour
 )
 
 // Options 是天气接口的可选参数。

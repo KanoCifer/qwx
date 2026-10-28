@@ -2,8 +2,29 @@ package airquality
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/KanoCifer/qwx"
+)
+
+// 空气质量端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
+const (
+	// EndpointCurrent 是实时空气质量端点。
+	EndpointCurrent = qwx.Endpoint("airquality/v1/current")
+	// EndpointDaily 是逐日空气质量预报端点。
+	EndpointDaily = qwx.Endpoint("airquality/v1/daily")
+	// EndpointHourly 是逐小时空气质量预报端点。
+	EndpointHourly = qwx.Endpoint("airquality/v1/hourly")
+	// EndpointStation 是单个监测站端点。
+	EndpointStation = qwx.Endpoint("airquality/v1/stations")
+)
+
+// 空气质量接口的默认缓存时长。
+//
+// 实况 30 分钟（上游逐小时更新，留一半余量），预报 1 小时。
+const (
+	currentCacheTTL  = 30 * time.Minute
+	forecastCacheTTL = time.Hour
 )
 
 // Options 是空气质量接口的可选参数。

@@ -4,10 +4,26 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
 )
+
+// GeoAPI 端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
+const (
+	// EndpointCity 是城市检索端点。
+	EndpointCity = qwx.Endpoint("geo/v2/city/lookup")
+	// EndpointPOI 是 POI 检索端点。
+	EndpointPOI = qwx.Endpoint("geo/v2/poi/lookup")
+	// EndpointPOIRange 是 POI 范围检索端点。
+	EndpointPOIRange = qwx.Endpoint("geo/v2/poi/range")
+	// EndpointTopCities 是热门城市端点。
+	EndpointTopCities = qwx.Endpoint("geo/v2/city/top")
+)
+
+// GeoAPI 的默认缓存时长：地理信息几乎不变，缓存久一点。
+const cacheTTL = 24 * time.Hour
 
 // Options 是 GeoAPI 的可选参数。
 type Options struct {

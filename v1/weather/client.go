@@ -7,18 +7,9 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/coord"
-)
-
-// 天气接口的缓存时长。
-//
-// 按上游的数据更新节奏取值：实况 10 分钟、逐时/逐日 1 小时。
-const (
-	currentCacheTTL  = 10 * time.Minute
-	forecastCacheTTL = time.Hour
 )
 
 // Client 是天气接口的调用入口。
@@ -47,6 +38,8 @@ func New(base qwx.Doer) *Client {
 // 换成坐标。
 //
 // 缓存键：`qwx:v1:current:<lat>,<lon>` 加查询参数后缀。
+//
+// 默认 TTL 10 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointCurrent] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*CurrentWeather, error) {
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -57,6 +50,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 		Method:   "GET",
 		Path:     "/weather/v1/current/" + lat + "/" + lon,
 		Query:    opts.params(),
+		Endpoint: EndpointCurrent,
 		CacheKey: c.currentCacheKey(loc, opts),
 		TTL:      currentCacheTTL,
 	}, &out)
@@ -78,6 +72,8 @@ func (c *Client) currentCacheKey(loc qwx.Location, opts Options) string {
 // hours 取值 1~240，超出范围返回 [qwx.ErrInvalidParameter]，不打上游。
 //
 // 缓存键：`qwx:v1:hourly:<lat>,<lon>:h<hours>` 加查询参数后缀。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointHourly] 覆盖。
 func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts Options) (*HourlyForecast, error) {
 	if hours < 1 || hours > MaxHourlyHours {
 		return nil, fmt.Errorf("%w: hours %d out of range [1,%d]", qwx.ErrInvalidParameter, hours, MaxHourlyHours)
@@ -94,6 +90,7 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts O
 		Method:   "GET",
 		Path:     "/weather/v1/hourly/" + lat + "/" + lon,
 		Query:    q,
+		Endpoint: EndpointHourly,
 		CacheKey: c.hourlyCacheKey(loc, hours, opts),
 		TTL:      forecastCacheTTL,
 	}, &out)
@@ -118,6 +115,8 @@ func (c *Client) hourlyCacheKey(loc qwx.Location, hours int, opts Options) strin
 // days 取值 1~10，超出范围返回 [qwx.ErrInvalidParameter]，不打上游。
 //
 // 缓存键：`qwx:v1:daily:<lat>,<lon>:d<days>` 加查询参数后缀。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointDaily] 覆盖。
 func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Options) (*DailyForecast, error) {
 	if days < 1 || days > MaxDailyDays {
 		return nil, fmt.Errorf("%w: days %d out of range [1,%d]", qwx.ErrInvalidParameter, days, MaxDailyDays)
@@ -134,6 +133,7 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Opt
 		Method:   "GET",
 		Path:     "/weather/v1/daily/" + lat + "/" + lon,
 		Query:    q,
+		Endpoint: EndpointDaily,
 		CacheKey: c.dailyCacheKey(loc, days, opts),
 		TTL:      forecastCacheTTL,
 	}, &out)

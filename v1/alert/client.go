@@ -6,14 +6,10 @@ package alert
 
 import (
 	"context"
-	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/coord"
 )
-
-// 预警接口的缓存时长：上游 5 分钟更新一次预警。
-const cacheTTL = 5 * time.Minute
 
 // Client 是预警接口的调用入口。
 //
@@ -37,6 +33,8 @@ func New(base qwx.Doer) *Client {
 // 调 GET /weatheralert/v1/current/{latitude}/{longitude}。
 //
 // 缓存键：`qwx:alert:v1:<lat>,<lon>` 加查询参数后缀。
+//
+// 默认 TTL 5 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointCurrent] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*Result, error) {
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -47,6 +45,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 		Method:   "GET",
 		Path:     "/weatheralert/v1/current/" + lat + "/" + lon,
 		Query:    opts.params(),
+		Endpoint: EndpointCurrent,
 		CacheKey: "qwx:alert:v1:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + opts.cacheSuffix(),
 		TTL:      cacheTTL,
 	}, &out)

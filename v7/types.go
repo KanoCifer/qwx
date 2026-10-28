@@ -1,5 +1,32 @@
 package v7
 
+import (
+	"time"
+
+	"github.com/KanoCifer/qwx"
+)
+
+// 旧一代端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
+const (
+	// EndpointWarnings 是旧一代预警端点。
+	EndpointWarnings = qwx.Endpoint("v7/warning/now")
+	// EndpointTide 是潮汐端点。
+	EndpointTide = qwx.Endpoint("v7/ocean/tide")
+	// EndpointIndices 是生活指数端点。
+	EndpointIndices = qwx.Endpoint("v7/indices")
+	// EndpointMinutely 是分钟级降水端点。
+	EndpointMinutely = qwx.Endpoint("v7/minutely/5m")
+)
+
+// 旧一代接口的默认缓存时长。
+//
+// 预警与分钟级降水对齐上游 5 分钟的更新节奏，潮汐与生活指数 1 小时。
+const (
+	alertCacheTTL    = 5 * time.Minute
+	minutelyCacheTTL = 5 * time.Minute
+	forecastCacheTTL = time.Hour
+)
+
 // IndicesType 生活指数类型代码。
 //
 // 取值 1~16，具体含义见官方「天气指数」文档。

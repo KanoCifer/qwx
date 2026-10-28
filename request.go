@@ -18,7 +18,14 @@ type Request struct {
 	Query url.Values
 	// CacheKey 是缓存键。留空表示不缓存。
 	CacheKey string
-	// TTL 是缓存时长。小于等于 0 表示不缓存。
+	// Endpoint 是该请求所属的端点，由端点包填写。
+	//
+	// 用于 [TTLPolicy] 按端点匹配。留空表示不参与策略匹配：
+	// 此时策略不会被调用，缓存时长只由 [Request.TTL] 决定。
+	Endpoint Endpoint
+	// TTL 是端点包内置的默认缓存时长。小于等于 0 表示不缓存。
+	//
+	// 最终时长由 [Client] 解析：单次覆盖 > TTLPolicy > 本字段。
 	TTL time.Duration
 }
 

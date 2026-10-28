@@ -8,14 +8,10 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
 )
-
-// GeoAPI 的缓存时长：地理信息几乎不变，缓存久一点。
-const cacheTTL = 24 * time.Hour
 
 // Client 是 GeoAPI 的调用入口。
 //
@@ -42,6 +38,8 @@ func New(base qwx.Doer) *Client {
 // 也支持坐标反查（传 "经度,纬度" 拿该点所在的城市）。
 //
 // 缓存键：`qwx:geo:city:<location>` 加查询参数后缀。
+//
+// 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointCity] 覆盖。
 func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options) (*CityResult, error) {
 	q := opts.params()
 	q.Set("location", loc.Query())
@@ -51,6 +49,7 @@ func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options)
 		Method:   "GET",
 		Path:     "/geo/v2/city/lookup",
 		Query:    q,
+		Endpoint: EndpointCity,
 		CacheKey: "qwx:geo:city:" + loc.Query() + opts.cacheSuffix(),
 		TTL:      cacheTTL,
 	}, &out)
@@ -72,6 +71,8 @@ func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options)
 // 不能假设"查不到就是空"。
 //
 // 缓存键：`qwx:geo:poi:<type>:<location>` 加查询参数后缀。
+//
+// 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointPOI] 覆盖。
 func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, opts Options) (*POIResult, error) {
 	switch typ {
 	case POIScenic, POICSTA, POITSTA:
@@ -87,6 +88,7 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 		Method:   "GET",
 		Path:     "/geo/v2/poi/lookup",
 		Query:    q,
+		Endpoint: EndpointPOI,
 		CacheKey: "qwx:geo:poi:" + string(typ) + ":" + loc.Query() + opts.cacheSuffix(),
 		TTL:      cacheTTL,
 	}, &out)
@@ -106,6 +108,8 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 // "No Such Location"，不是空列表。
 //
 // 缓存键：`qwx:geo:poirange:<type>:<location>:r<radius>` 加查询参数后缀。
+//
+// 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointPOIRange] 覆盖。
 func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, opts POIRangeOptions) (*RangeResult, error) {
 	switch typ {
 	case POIScenic, POICSTA, POITSTA:
@@ -139,6 +143,7 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 		Method:   "GET",
 		Path:     "/geo/v2/poi/range",
 		Query:    q,
+		Endpoint: EndpointPOIRange,
 		CacheKey: "qwx:geo:poirange:" + string(typ) + ":" + loc.Query() + suffix,
 		TTL:      cacheTTL,
 	}, &out)
@@ -153,12 +158,15 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 // 调 GET /geo/v2/city/top。
 //
 // 缓存键：`qwx:geo:topcity` 加查询参数后缀。
+//
+// 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointTopCities] 覆盖。
 func (c *Client) TopCities(ctx context.Context, opts Options) (*TopCityResult, error) {
 	var out TopCityResult
 	err := c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/geo/v2/city/top",
 		Query:    opts.params(),
+		Endpoint: EndpointTopCities,
 		CacheKey: "qwx:geo:topcity" + opts.cacheSuffix(),
 		TTL:      cacheTTL,
 	}, &out)

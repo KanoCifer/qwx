@@ -6,19 +6,10 @@ package airquality
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
 	"github.com/KanoCifer/qwx/internal/coord"
-)
-
-// 空气质量接口的缓存时长。
-//
-// 实况 30 分钟（上游逐小时更新，留一半余量），预报 1 小时。
-const (
-	currentCacheTTL  = 30 * time.Minute
-	forecastCacheTTL = time.Hour
 )
 
 // Client 是空气质量接口的调用入口。
@@ -43,6 +34,8 @@ func New(base qwx.Doer) *Client {
 // 调 GET /airquality/v1/current/{latitude}/{longitude}。
 //
 // 缓存键：`qwx:aq:v1:current:<lat>,<lon>` 加语言后缀。
+//
+// 默认 TTL 30 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointCurrent] 覆盖。
 func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*Current, error) {
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -53,6 +46,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 		Method:   "GET",
 		Path:     "/airquality/v1/current/" + lat + "/" + lon,
 		Query:    opts.params(),
+		Endpoint: EndpointCurrent,
 		CacheKey: "qwx:aq:v1:current:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + cachekey.Lang(opts.Lang),
 		TTL:      currentCacheTTL,
 	}, &out)
@@ -67,6 +61,8 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 // 调 GET /airquality/v1/daily/{latitude}/{longitude}。
 //
 // 缓存键：`qwx:aq:v1:daily:<lat>,<lon>` 加语言后缀。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointDaily] 覆盖。
 func (c *Client) Daily(ctx context.Context, loc qwx.Location, opts Options) (*DailyForecast, error) {
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -77,6 +73,7 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, opts Options) (*Da
 		Method:   "GET",
 		Path:     "/airquality/v1/daily/" + lat + "/" + lon,
 		Query:    opts.params(),
+		Endpoint: EndpointDaily,
 		CacheKey: "qwx:aq:v1:daily:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + cachekey.Lang(opts.Lang),
 		TTL:      forecastCacheTTL,
 	}, &out)
@@ -91,6 +88,8 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, opts Options) (*Da
 // 调 GET /airquality/v1/hourly/{latitude}/{longitude}。
 //
 // 缓存键：`qwx:aq:v1:hourly:<lat>,<lon>` 加语言后缀。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointHourly] 覆盖。
 func (c *Client) Hourly(ctx context.Context, loc qwx.Location, opts Options) (*HourlyForecast, error) {
 	lat, lon, err := loc.Path()
 	if err != nil {
@@ -101,6 +100,7 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, opts Options) (*H
 		Method:   "GET",
 		Path:     "/airquality/v1/hourly/" + lat + "/" + lon,
 		Query:    opts.params(),
+		Endpoint: EndpointHourly,
 		CacheKey: "qwx:aq:v1:hourly:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + cachekey.Lang(opts.Lang),
 		TTL:      forecastCacheTTL,
 	}, &out)
@@ -117,6 +117,8 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, opts Options) (*H
 // stationID 是监测站 ID（如 "P51762"），来自 [Current] 的 Stations 列表。
 //
 // 缓存键：`qwx:aq:v1:station:<id>` 加语言后缀。
+//
+// 默认 TTL 30 分钟，可用 [qwx.WithTTLPolicy] 按 [EndpointStation] 覆盖。
 func (c *Client) Station(ctx context.Context, stationID string, opts Options) (*StationData, error) {
 	if stationID == "" {
 		return nil, fmt.Errorf("%w: empty station ID", qwx.ErrInvalidParameter)
@@ -126,6 +128,7 @@ func (c *Client) Station(ctx context.Context, stationID string, opts Options) (*
 		Method:   "GET",
 		Path:     "/airquality/v1/stations/" + stationID,
 		Query:    opts.params(),
+		Endpoint: EndpointStation,
 		CacheKey: "qwx:aq:v1:station:" + stationID + cachekey.Lang(opts.Lang),
 		TTL:      currentCacheTTL,
 	}, &out)
