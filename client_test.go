@@ -157,6 +157,30 @@ func TestDoRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestDoReturnsErrorWhenContextCanceledDuringRetry(t *testing.T) {
+	// 上游持续 5xx：SDK 进入重试退避。此时调用方取消 ctx，SDK 要立刻返回
+	// 错误，不能继续等退避，也不能返回空响应让调用方 panic。
+	body := `{"error":{"status":500,"title":"Internal Server Error"}}`
+	fs := testutil.NewFakeServer(t, body)
+	fs.Handler = func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(body))
+	}
+	c := testutil.NewClient(t, fs)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	time.AfterFunc(200*time.Millisecond, cancel)
+
+	err := c.Do(ctx, qwx.Request{Path: "/x"}, nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("error = %v, want context.Canceled", err)
+	}
+}
+
 func TestNewClientRequiresAuth(t *testing.T) {
 	if _, err := qwx.NewClient(nil, "abcxyz.qweatherapi.com"); err == nil {
 		t.Error("expected error")

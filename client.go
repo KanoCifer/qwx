@@ -3,6 +3,7 @@ package qwx
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -249,13 +250,26 @@ func parseRetryAfter(v string, now time.Time) (time.Duration, bool) {
 	return 0, false
 }
 
-// 带退避，重试的HTTP请求
+// maxRetryDelay 是单次重试等待的上限。
 //
-// 重试是上游 5xx 或网络错误触发的，每次重试前记一条日志。
+// 上游的 Retry-After 可能给出很大的值。客户端不是队列服务，不该在一次
+// 请求里睡一小时：超过上限就按上限等，重试次数本身也有上限。
+const maxRetryDelay = 30 * time.Second
+
+// errNoResponse 表示重试结束却没有拿到任何响应。
+var errNoResponse = errors.New("qwx: no response from upstream")
+
+// doWithRetry 带退避地重试上游请求。
+//
+// 重试是上游 5xx、429 或网络错误触发的，每次重试前记一条日志。
+//
+// 返回值有两种形态，不会同时为空：
+//
+//   - 拿到了响应（含 4xx/5xx/429）：resp 非 nil、err 为 nil，调用方读状态码归类。
+//   - 网络错误或调用方已断开：resp 为 nil、err 非 nil。
 func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
-	var retryDelay time.Duration = 0
 
 	for i := 0; i <= maxRetry; i++ {
 
@@ -271,21 +285,24 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 			return resp, nil
 		}
 
-		retryDelay = time.Duration(i+1) * time.Second
-
-		if resp != nil && resp.StatusCode == 429 {
-			retryAfter := resp.Header.Get("Retry-After")
-			if delay, isGet := parseRetryAfter(retryAfter, time.Now()); isGet {
-				retryDelay = delay
-			}
+		// 退避：第 i 次重试等 (i+1) 秒，上游给了 Retry-After 就听上游的。
+		retryAfter := ""
+		if resp != nil {
+			retryAfter = resp.Header.Get("Retry-After")
 		}
+		retryDelay := nextRetryDelay(i+1, retryAfter, time.Now())
 
 		// 最后一轮或调用方已断开：不再重试
 		if i == maxRetry || ctx.Err() != nil {
-			if ctx.Err() != nil && resp != nil {
-				resp.Body.Close()
+			if ctx.Err() != nil {
+				if resp != nil {
+					resp.Body.Close()
+				}
+				return nil, ctx.Err()
 			}
-			return nil, err
+			// 最后一轮仍是失败：把响应交回调用方，由它按状态码归类
+			// （5xx 归上游不可用，429 归配额超限）。网络错误时 resp 为 nil。
+			return resp, err
 		}
 
 		if resp != nil {
@@ -294,14 +311,29 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 
 		c.logRetry(ctx, req, i+1, responseStatus(resp), err)
 
+		timer := time.NewTimer(retryDelay)
 		select {
-		case <-time.After(retryDelay):
+		case <-timer.C:
 		case <-ctx.Done():
+			timer.Stop()
 			return nil, ctx.Err()
 		}
 	}
 
 	return resp, err
+}
+
+// nextRetryDelay 算出下一次重试要等多久。
+// 等待不超过 [maxRetryDelay]
+func nextRetryDelay(attempt int, retryAfter string, now time.Time) time.Duration {
+	d := time.Duration(attempt) * time.Second
+	if delay, ok := parseRetryAfter(retryAfter, now); ok && delay > d {
+		d = delay
+	}
+	if d > maxRetryDelay {
+		d = maxRetryDelay
+	}
+	return d
 }
 
 // responseStatus 取响应状态码，响应为空时返回 0。
@@ -337,14 +369,19 @@ func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
 	resp, err := c.doWithRetry(ctx, req, httpReq)
 	if err != nil {
 		c.logUpstreamFailure(ctx, req, err, time.Since(start))
-		return nil, fmt.Errorf("%w: %v", ErrUpstreamUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrUpstreamUnavailable, err)
+	}
+	if resp == nil {
+		// doWithRetry 保证有响应或有错误；这里兜底成错误，不让调用方吃到 nil 解引用。
+		c.logUpstreamFailure(ctx, req, errNoResponse, time.Since(start))
+		return nil, fmt.Errorf("%w: %w", ErrUpstreamUnavailable, errNoResponse)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.logUpstreamFailure(ctx, req, err, time.Since(start))
-		return nil, fmt.Errorf("%w: read body: %v", ErrUpstreamUnavailable, err)
+		return nil, fmt.Errorf("%w: read body: %w", ErrUpstreamUnavailable, err)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
