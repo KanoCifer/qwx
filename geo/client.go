@@ -35,11 +35,14 @@ func New(base qwx.Doer) *Client {
 // loc 可以是坐标对、LocationID 或地名 —— 这是唯一认地名的接口。
 // 也支持坐标反查（传 "经度,纬度" 拿该点所在的城市）。
 //
+// opts.Adm 限定上级行政区划（排除重名城市），opts.Range 限定搜索范围，
+// 用 ISO 3166 国家代码，如 "cn"、"world"。留空时上游在所有城市里搜。
+//
 // 缓存键：`qwx:geo:city:<location>` 加查询参数后缀。
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointCity] 覆盖。
 func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options) (*CityResult, error) {
-	p := opts.params()
+	p := opts.cityParams()
 	q := p.Query()
 	q.Set("location", loc.Query())
 
@@ -72,6 +75,9 @@ func cityCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // loc 可以是坐标对、LocationID 或地名。typ 必填。
 //
+// opts.City 限定 POI 所在城市，城市名或 LocationID。城市名是精准匹配，
+// 匹配不上上游返回空。
+//
 // **上游在该类型附近没有数据时回 400 "No Such Location"，而不是空列表** ——
 // 这是实测行为：内陆城市（如北京）查 TSTA（潮汐站）与 CSTA（观测站）
 // 都会 400，沿海城市（如舟山 P2419、高雄）才查得到。调用方要按错误处理，
@@ -86,7 +92,7 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 	default:
 		return nil, fmt.Errorf("%w: unsupported POI type %q", qwx.ErrInvalidParameter, typ)
 	}
-	p := opts.params()
+	p := opts.poiParams()
 	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("type", string(typ))
@@ -136,7 +142,7 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: POI range requires coordinates", qwx.ErrInvalidLocation)
 	}
-	p := opts.params()
+	p := opts.poiRangeParams()
 	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("type", string(typ))
@@ -168,11 +174,13 @@ func poiRangeCacheKey(typ POIType, loc qwx.Location, p cachekey.Params) string {
 //
 // 调 GET /geo/v2/city/top。
 //
+// opts.Range 限定搜索范围，用 ISO 3166 国家代码，如 "cn"、"world"。
+//
 // 缓存键：`qwx:geo:topcity` 加查询参数后缀。
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointTopCities] 覆盖。
 func (c *Client) TopCities(ctx context.Context, opts Options) (*TopCityResult, error) {
-	p := opts.params()
+	p := opts.topParams()
 	var out TopCityResult
 	err := c.base.Do(ctx, qwx.Request{
 		Method:   "GET",

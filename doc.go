@@ -1,21 +1,25 @@
 // Package qwx 是和风天气（QWeather）开发服务的 Go 客户端。
 //
 // 它覆盖官方文档中的核心接口族：GeoAPI 城市/POI 检索、天气预报（新一代
-// /weather/v1/*）、空气质量、预警、海洋潮汐、生活指数与分钟级降水预报。
+// /weather/v1/*）、空气质量、预警、太阳辐射预报、海洋潮汐、生活指数、
+// 分钟级降水、台风与天文数据。
 //
 // # 分包
 //
 // 本包只放跨接口族共用的部分：基础客户端、认证、缓存、位置、错误与两代
 // 共用的请求结构。一个包 = 一个上游资源族：
 //
-//   - [github.com/KanoCifer/qwx/v1] —— 新一代跨端点族共用的基础类型
-//   - [github.com/KanoCifer/qwx/v1/weather] —— 新一代天气
-//   - [github.com/KanoCifer/qwx/v1/airquality] —— 新一代空气质量
-//   - [github.com/KanoCifer/qwx/v1/alert] —— 预警
-//   - [github.com/KanoCifer/qwx/v7/ocean] —— 旧一代潮汐
-//   - [github.com/KanoCifer/qwx/v7/indices] —— 旧一代生活指数
-//   - [github.com/KanoCifer/qwx/v7/minutely] —— 旧一代分钟级降水
-//   - [github.com/KanoCifer/qwx/geo] —— GeoAPI（/geo/v2/*）
+//   - `v1` —— 新一代跨端点族共用的基础类型
+//   - `v1/weather` —— 新一代天气
+//   - `v1/airquality` —— 新一代空气质量
+//   - `v1/alert` —— 预警
+//   - `v1/solarradiation` —— 新一代太阳辐射预报
+//   - `v7/ocean` —— 旧一代潮汐
+//   - `v7/indices` —— 旧一代生活指数
+//   - `v7/minutely` —— 旧一代分钟级降水
+//   - `v7/storm` —— 台风
+//   - `v7/astronomy` —— 天文
+//   - `geo` —— GeoAPI（/geo/v2/*）
 //
 // geo 是唯一的例外：它的四个检索端点共享同一个地点类型，拆开会让该类型
 // 失去归属。
@@ -63,7 +67,7 @@
 // 本包不内置缓存实现，而是定义 [Cache] 接口由调用方注入（Redis、内存均可）。
 // 未注入时每次请求都打到上游。
 //
-// Redis 实现是独立模块 [github.com/KanoCifer/qwx/rediscache]，依赖 go-redis，
+// Redis 实现是独立模块 `rediscache`，依赖 go-redis，
 // 核心包不引入它。需要时单独引入：
 //
 //	go get github.com/KanoCifer/qwx/rediscache

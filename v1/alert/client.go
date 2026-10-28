@@ -40,7 +40,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
-	p := opts.params()
+	p := params(opts)
 	var out Result
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",

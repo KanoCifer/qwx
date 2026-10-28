@@ -24,18 +24,44 @@ const (
 const cacheTTL = 24 * time.Hour
 
 // Options 是 GeoAPI 的可选参数。
+//
+// 四个检索端点接受的参数子集不同，各端点只上报自己认的参数：行政区划
+// 只有城市检索认，搜索范围城市检索与热门城市认，限定城市只有 POI 检索认。
 type Options struct {
 	// Lang 是语言代码。留空用上游默认。
 	Lang string
 	// Number 是返回条数上限。0 用上游默认（10）。
 	Number int
+	// Adm 是上级行政区划的 LocationID，如 "101010100"。
+	//
+	// 用于排除重名城市或过滤结果。只有城市检索认这个参数。
+	Adm string
+	// Range 是搜索范围，用 ISO 3166 国家代码，如 "cn"、"world"。
+	//
+	// 留空时上游在所有城市里搜，"world" 才能查到境外城市。
+	// 城市检索与热门城市认这个参数。
+	Range string
+	// City 是限定 POI 所在城市，城市名或 LocationID，如 "101010100"。
+	//
+	// 城市名是精准匹配，匹配不上上游返回空。只有 POI 检索认这个参数。
+	City string
 }
 
-// params 是影响结果的查询参数。
+// cityParams 是城市检索用的查询参数。
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
-func (o Options) params() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang, Number: o.Number}
+func (o Options) cityParams() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang, Number: o.Number, Adm: o.Adm, Range: o.Range}
+}
+
+// poiParams 是 POI 检索用的查询参数。
+func (o Options) poiParams() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang, Number: o.Number, City: o.City}
+}
+
+// topParams 是热门城市用的查询参数。
+func (o Options) topParams() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang, Number: o.Number, Range: o.Range}
 }
 
 // POIRangeOptions 是 POI 范围检索的可选参数。
@@ -48,11 +74,11 @@ type POIRangeOptions struct {
 	Radius int
 }
 
-// params 是影响结果的查询参数。
+// poiRangeParams 是 POI 范围检索用的查询参数。
 //
 // 半径用指针传：半径为 0 与"没有半径参数"在键里要分开，而请求里都不
 // 发 radius（上游按默认值处理）。
-func (o POIRangeOptions) params() cachekey.Params {
+func (o POIRangeOptions) poiRangeParams() cachekey.Params {
 	return cachekey.Params{Lang: o.Lang, Number: o.Number, Radius: &o.Radius}
 }
 

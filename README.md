@@ -254,7 +254,7 @@ for _, s := range cur.Stations {
 }
 ```
 
-不同标准的 AQI 量纲不同（QAQI 是 0~1，US EPA 是 0~500），不要跨标准比较。
+不同标准的 AQI 量纲不同（QAQI 是 0~1，US EPA 是 0~500）。
 
 ### 预警
 
@@ -394,6 +394,13 @@ if err != nil {
 for _, d := range result.Daily {
 	fmt.Println(d.Date, d.Name, d.Category, d.Text)
 }
+
+// 一次拿多种指数：上游的 type 支持逗号分隔
+multi, err := idx.IndicesMulti(ctx, loc, []int{4, 5}, 1, "zh")
+if err != nil {
+	return err
+}
+fmt.Println(len(multi.Daily))
 ```
 
 ### 分钟级降水
@@ -423,6 +430,97 @@ for _, m := range result.Minutely {
 只覆盖中国区域，境外坐标上游没有数据。`Precip` 是字符串：空串表示「无此数据」，
 `"0.00"` 表示「真的没下雨」。
 
+### 太阳辐射预报
+
+新一代端点，只认坐标，路径参数纬度在前：
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/v1/solarradiation"
+)
+
+sr := solarradiation.New(base)
+ctx := context.Background()
+loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+// hours 取 1~72；interval 只能是 15、30、60
+result, err := sr.Forecast(ctx, loc, 24, solarradiation.Options{
+	Interval: 60,
+	Extra:    "weather",
+})
+if err != nil {
+	return err
+}
+for _, f := range result.Forecasts {
+	fmt.Println(f.ForecastTime, f.GHI.Value, f.GHI.Unit)
+}
+```
+
+要光伏阵列平面辐照度就把 `Extra` 设为 `"poa"`，同时给 `Tilt` 与 `Azimuth`。
+
+### 台风
+
+三个端点都不收位置参数，按流域与台风 ID 检索：
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx/v7/storm"
+)
+
+st := storm.New(base)
+ctx := context.Background()
+
+// basin 目前上游只支持 NP
+list, err := st.List(ctx, storm.BasinNP, 2026)
+if err != nil {
+	return err
+}
+for _, s := range list.Storms {
+	fmt.Println(s.ID, s.Name, s.IsActive) // IsActive: "1" 活跃 / "0" 停编
+}
+
+forecast, err := st.Forecast(ctx, "NP2026")
+if err != nil {
+	return err
+}
+fmt.Println(len(forecast.Forecast))
+```
+
+### 天文
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/v7/astronomy"
+)
+
+as := astronomy.New(base)
+ctx := context.Background()
+loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+sun, err := as.Sun(ctx, loc, "20260531")
+if err != nil {
+	return err
+}
+if sun.Sunrise != nil {
+	fmt.Println(*sun.Sunrise, *sun.Sunset)
+}
+
+// 太阳高度角只认坐标，还要给时刻、时区与海拔
+angle, err := as.SolarElevationAngle(ctx, loc, "20260531", "1200", "0800", 43)
+if err != nil {
+	return err
+}
+fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
+```
+
 ### 缓存
 
 SDK 不内置缓存实现，注入你已有的：
@@ -433,7 +531,7 @@ import "github.com/KanoCifer/qwx"
 base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(myRedisCache))
 ```
 
-也可以先用内置的内存缓存开发调试：
+内置的内存缓存 `qwx.NewMemoryCache()` **不建议用于生产环境**：它没有后台清理，过期条目只在被命中时顺手删除，长跑进程的内存占用只增不减。只拿它当测试替身或单实例临时缓存：
 
 ```go
 import "github.com/KanoCifer/qwx"
@@ -466,7 +564,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(cache))
 连接超时。构造时不会连 Redis，用 `cache.Ping(ctx)` 做启动自检。
 
 缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），
-TTL 按端点的数据更新节奏设定。缓存键不含 API Host，一个 Cache 实例不要跨账号共用。
+TTL 按端点的数据更新节奏设定。缓存键不含 API Host。
 
 要按端点调 TTL，传一份策略：
 
@@ -630,9 +728,17 @@ w := weather.New(fakeDoer{})
 | `v1/airquality` | `Hourly` | `GET /airquality/v1/hourly/{lat}/{lon}` |
 | `v1/airquality` | `Station` | `GET /airquality/v1/stations/{locationId}` |
 | `v1/alert` | `Current` | `GET /weatheralert/v1/current/{lat}/{lon}` |
+| `v1/solarradiation` | `Forecast` | `GET /solarradiation/v1/forecast/{lat}/{lon}` |
 | `v7/ocean` | `Tide` | `GET /v7/ocean/tide` |
 | `v7/indices` | `Indices` | `GET /v7/indices/{days}d` |
+| `v7/indices` | `IndicesMulti` | `GET /v7/indices/{days}d` |
 | `v7/minutely` | `Minutely` | `GET /v7/minutely/5m` |
+| `v7/storm` | `List` | `GET /v7/tropical/storm-list` |
+| `v7/storm` | `Forecast` | `GET /v7/tropical/storm-forecast` |
+| `v7/storm` | `Track` | `GET /v7/tropical/storm-track` |
+| `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` |
+| `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` |
+| `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` |
 
 包结构：
 
@@ -643,9 +749,12 @@ w := weather.New(fakeDoer{})
 | `qwx/v1/weather` | 新一代天气 `/weather/v1/*` |
 | `qwx/v1/airquality` | 新一代空气质量 `/airquality/v1/*` |
 | `qwx/v1/alert` | 预警 `/weatheralert/v1/*` |
+| `qwx/v1/solarradiation` | 新一代太阳辐射预报 `/solarradiation/v1/*` |
 | `qwx/v7/ocean` | 旧一代潮汐 `/v7/ocean/tide` |
 | `qwx/v7/indices` | 旧一代生活指数 `/v7/indices/*` |
 | `qwx/v7/minutely` | 旧一代分钟级降水 `/v7/minutely/*` |
+| `qwx/v7/storm` | 台风 `/v7/tropical/*` |
+| `qwx/v7/astronomy` | 天文 `/v7/astronomy/*` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
 | `qwx/rediscache` | Redis 缓存实现（独立模块，依赖 go-redis） |
 

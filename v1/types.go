@@ -22,6 +22,20 @@ type Metadata struct {
 	ZeroResult *bool `json:"zeroResult,omitempty"`
 }
 
+// Options 是新一代端点共用的可选参数。
+//
+// 天气与预警两个端点族接受同一组参数，所以类型放在这里 —— 只服务单一
+// 端点族的参数留在该端点族自己的包里。
+type Options struct {
+	// Lang 是语言代码，如 "zh"、"en"。留空用上游默认。
+	Lang string
+	// LocalTime 是否返回查询地点的当地时间。
+	//
+	// 新一代接口默认给 UTC（"2026-10-21T05:00Z"），不传 localTime
+	// 时间会整整差 8 小时。除非明确要 UTC，否则应设为 true。
+	LocalTime bool
+}
+
 // Value 是带单位的数值。
 //
 // 新一代接口把数值与单位拆开，不再像 v7 那样把单位拼进字符串。

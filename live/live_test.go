@@ -14,16 +14,22 @@ package live
 
 import (
 	"context"
+	"net/url"
 	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/geo"
 	"github.com/KanoCifer/qwx/v1/airquality"
 	"github.com/KanoCifer/qwx/v1/alert"
+	"github.com/KanoCifer/qwx/v1/solarradiation"
 	"github.com/KanoCifer/qwx/v1/weather"
+	"github.com/KanoCifer/qwx/v7/astronomy"
 	"github.com/KanoCifer/qwx/v7/indices"
 	"github.com/KanoCifer/qwx/v7/minutely"
+	"github.com/KanoCifer/qwx/v7/storm"
 )
 
 func liveClient(t *testing.T) *qwx.Client {
@@ -60,6 +66,9 @@ func TestLive(t *testing.T) {
 	idx := indices.New(c)
 	mi := minutely.New(c)
 	g := geo.New(c)
+	sr := solarradiation.New(c)
+	st := storm.New(c)
+	as := astronomy.New(c)
 
 	t.Run("Current", func(t *testing.T) {
 		got, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
@@ -129,5 +138,54 @@ func TestLive(t *testing.T) {
 			t.Fatalf("Alerts: %v", err)
 		}
 		t.Logf("%d 条", len(got.Alerts))
+	})
+
+	t.Run("SolarRadiation", func(t *testing.T) {
+		got, err := sr.Forecast(ctx, loc, 24, solarradiation.Options{Interval: 60})
+		if err != nil {
+			t.Fatalf("SolarRadiation: %v", err)
+		}
+		for _, f := range got.Forecasts {
+			t.Logf("%s ghi=%v%s", f.ForecastTime, f.GHI.Value, f.GHI.Unit)
+		}
+	})
+
+	t.Run("SolarRadiationHoursUpperBound", func(t *testing.T) {
+		// 直接打上游，绕过 SDK 的客户端校验，探上游真实的上限。
+		// hours=72 是官方文档页写的上限，hours=73 应当被上游拒绝。
+		for _, hours := range []int{72, 73} {
+			var out map[string]any
+			req := qwx.Request{
+				Method:   "GET",
+				Path:     "/solarradiation/v1/forecast/39.92/116.41",
+				Query:    url.Values{"hours": []string{strconv.Itoa(hours)}},
+				Endpoint: solarradiation.Endpoint,
+			}
+			err := c.Do(ctx, req, &out)
+			t.Logf("hours=%d err=%v", hours, err)
+		}
+	})
+
+	t.Run("StormList", func(t *testing.T) {
+		got, err := st.List(ctx, storm.BasinNP, time.Now().Year())
+		if err != nil {
+			t.Fatalf("StormList: %v", err)
+		}
+		for _, s := range got.Storms {
+			t.Logf("%s %s active=%s", s.ID, s.Name, s.IsActive)
+		}
+	})
+
+	t.Run("Astronomy", func(t *testing.T) {
+		date := time.Now().Format("20060102")
+		got, err := as.Sun(ctx, loc, date)
+		if err != nil {
+			t.Fatalf("Astronomy: %v", err)
+		}
+		if got.Sunrise != nil && got.Sunset != nil {
+			t.Logf("%s %s", *got.Sunrise, *got.Sunset)
+		} else {
+			t.Logf("%s 无日出日落", date)
+		}
 	})
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
-	"github.com/KanoCifer/qwx/v1"
+	v1 "github.com/KanoCifer/qwx/v1"
 )
 
 // 空气质量端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。

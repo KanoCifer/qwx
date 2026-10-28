@@ -45,7 +45,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
-	p := opts.params()
+	p := params(opts)
 	var out CurrentWeather
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
@@ -87,7 +87,7 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts O
 	if err != nil {
 		return nil, err
 	}
-	p := opts.params()
+	p := params(opts)
 	q := p.Query()
 	q.Set("hours", strconv.Itoa(hours))
 
@@ -135,7 +135,7 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Opt
 	if err != nil {
 		return nil, err
 	}
-	p := opts.params()
+	p := params(opts)
 	q := p.Query()
 	q.Set("days", strconv.Itoa(days))
 

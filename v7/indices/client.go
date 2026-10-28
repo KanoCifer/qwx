@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
@@ -48,8 +49,37 @@ func New(base qwx.Doer) *Client {
 //
 // 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
 func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, lang string) (*Result, error) {
-	if typ < TypeAll || typ > MaxType {
-		return nil, fmt.Errorf("%w: indices type %d out of range [0,%d]", qwx.ErrInvalidParameter, typ, MaxType)
+	return c.IndicesMulti(ctx, loc, []int{typ}, days, lang)
+}
+
+// IndicesMulti 查询多种生活指数。
+//
+// 调 GET /v7/indices/{days}d?type={type1,type2}&location=...。
+//
+// 上游的 type 接受逗号分隔的多个类型（"3,5"），一次请求拿多种指数。
+// 取全部（[TypeAll]）时不能再带其他类型，否则返回 [qwx.ErrInvalidParameter]。
+//
+// days 只支持 1 与 3。types 每项取值 1~16，不能为空。
+//
+// 缓存键：`qwx:indices:<location>:t<types>:d<days>` 加语言后缀，
+// 多个类型用逗号连接（"t3,5"）。
+//
+// 默认 TTL 1 小时，可用 [qwx.WithTTLPolicy] 按 [Endpoint] 覆盖。
+func (c *Client) IndicesMulti(ctx context.Context, loc qwx.Location, types []int, days int, lang string) (*Result, error) {
+	if len(types) == 0 {
+		return nil, fmt.Errorf("%w: indices types must not be empty", qwx.ErrInvalidParameter)
+	}
+	for _, typ := range types {
+		if typ < TypeAll || typ > MaxType {
+			return nil, fmt.Errorf("%w: indices type %d out of range [%d,%d]", qwx.ErrInvalidParameter, typ, TypeAll, MaxType)
+		}
+	}
+	if len(types) > 1 {
+		for _, typ := range types {
+			if typ == TypeAll {
+				return nil, fmt.Errorf("%w: indices type %d cannot be combined with other types", qwx.ErrInvalidParameter, TypeAll)
+			}
+		}
 	}
 	if days != 1 && days != 3 {
 		return nil, fmt.Errorf("%w: indices days %d is not supported (only 1 and 3)", qwx.ErrInvalidParameter, days)
@@ -57,10 +87,11 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: indices requires coordinates", qwx.ErrInvalidLocation)
 	}
+	typeSeg := indicesTypeSegment(types)
 	p := cachekey.Params{Lang: lang}
 	q := p.Query()
 	q.Set("location", loc.Query())
-	q.Set("type", strconv.Itoa(typ))
+	q.Set("type", typeSeg)
 
 	var out Result
 	err := c.base.Do(ctx, qwx.Request{
@@ -68,7 +99,7 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 		Path:     "/v7/indices/" + strconv.Itoa(days) + "d",
 		Query:    q,
 		Endpoint: Endpoint,
-		CacheKey: indicesCacheKey(loc, typ, days, p),
+		CacheKey: indicesCacheKey(loc, typeSeg, days, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
@@ -77,13 +108,28 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 	return &out, nil
 }
 
+// indicesTypeSegment 拼出 type 参数与缓存键里的类型段。
+//
+// 多个类型用逗号连接：上游的 type 参数与键里的类型段共用这个形状。
+// 单类型时是 "0" 到 "16"，与旧的单类型调用完全一致。
+func indicesTypeSegment(types []int) string {
+	if len(types) == 1 {
+		return strconv.Itoa(types[0])
+	}
+	parts := make([]string, len(types))
+	for i, typ := range types {
+		parts[i] = strconv.Itoa(typ)
+	}
+	return strings.Join(parts, ",")
+}
+
 // indicesCacheKey 生活指数的缓存键。
 //
 // 指数类型与天数都进键：type=0 与 type=1、days=1 与 days=3 是不同的数据。
-func indicesCacheKey(loc qwx.Location, typ, days int, p cachekey.Params) string {
+func indicesCacheKey(loc qwx.Location, typeSeg string, days int, p cachekey.Params) string {
 	return cachekey.New(cachekey.FamilyIndices).
 		Path(loc.Query()).
-		Count("t", typ).
+		Path("t"+typeSeg).
 		Count("d", days).
 		Params(p).
 		String()

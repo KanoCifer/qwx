@@ -52,3 +52,77 @@ func TestParamsSuffixSkipsUnset(t *testing.T) {
 		t.Errorf("suffix = %q, want 空", got)
 	}
 }
+
+// TestParamsQueryIncludesFamilyParams 新加的参数也要上报上游。
+func TestParamsQueryIncludesFamilyParams(t *testing.T) {
+	tilt := 0
+	azimuth := 180
+	q := Params{
+		Adm:      "101010100",
+		Range:    "cn",
+		City:     "101010100",
+		Interval: 15,
+		Tilt:     &tilt,
+		Azimuth:  &azimuth,
+		Extra:    "weather,poa",
+	}.Query()
+
+	want := map[string]string{
+		"adm":      "101010100",
+		"range":    "cn",
+		"city":     "101010100",
+		"interval": "15",
+		"tilt":     "0",
+		"azimuth":  "180",
+		"extra":    "weather,poa",
+	}
+	for k, w := range want {
+		if got := q.Get(k); got != w {
+			t.Errorf("query %q = %q, want %q", k, got, w)
+		}
+	}
+	if len(q) != len(want) {
+		t.Errorf("query = %v, want %d 项", q, len(want))
+	}
+}
+
+// TestParamsSuffixIncludesFamilyParams 新加的参数进键，顺序接在已有参数之后。
+//
+// 老调用方不设这些字段，键的字节与发布时完全一致。
+func TestParamsSuffixIncludesFamilyParams(t *testing.T) {
+	tilt := 0
+	azimuth := 180
+	got := Params{
+		Lang:      "zh",
+		LocalTime: true,
+		Number:    5,
+		Adm:       "101010100",
+		Range:     "cn",
+		City:      "101010100",
+		Interval:  15,
+		Tilt:      &tilt,
+		Azimuth:   &azimuth,
+		Extra:     "poa",
+	}.suffix()
+	want := ":lang=zh:localTime=1:n=5:adm=101010100:range=cn:city=101010100:interval=15:tilt=0:azimuth=180:extra=poa"
+	if got != want {
+		t.Errorf("suffix = %q, want %q", got, want)
+	}
+}
+
+// TestParamsTiltAndAzimuthZeroIsReported 倾斜角与方位角的 0 是合法取值。
+//
+// 与半径的语义相反：非 nil 时就要上报，不能当"没传"。
+func TestParamsTiltAndAzimuthZeroIsReported(t *testing.T) {
+	zero := 0
+	q := Params{Tilt: &zero, Azimuth: &zero}.Query()
+	if got := q.Get("tilt"); got != "0" {
+		t.Errorf("query tilt = %q, want 0", got)
+	}
+	if got := q.Get("azimuth"); got != "0" {
+		t.Errorf("query azimuth = %q, want 0", got)
+	}
+	if got := (Params{Tilt: &zero, Azimuth: &zero}).suffix(); got != ":tilt=0:azimuth=0" {
+		t.Errorf("suffix = %q, want \":tilt=0:azimuth=0\"", got)
+	}
+}

@@ -44,6 +44,12 @@ const (
 	FamilyIndices Family = "qwx:indices:"
 	// FamilyMinutely 是旧一代分钟级降水的键前缀根。
 	FamilyMinutely Family = "qwx:minutely:"
+	// FamilySolarRadiation 是新一代太阳辐射预报的键前缀根。
+	FamilySolarRadiation Family = "qwx:solarradiation:v1:"
+	// FamilyStorm 是台风数据的键前缀根。
+	FamilyStorm Family = "qwx:storm:"
+	// FamilyAstronomy 是天文数据的键前缀根。
+	FamilyAstronomy Family = "qwx:astronomy:"
 )
 
 // Key 拼装一个缓存键。

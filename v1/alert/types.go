@@ -5,7 +5,7 @@ import (
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
-	"github.com/KanoCifer/qwx/v1"
+	v1 "github.com/KanoCifer/qwx/v1"
 )
 
 // 预警端点的标识，用于 [qwx.TTLPolicy] 按端点匹配缓存时长。
@@ -18,19 +18,15 @@ const (
 const cacheTTL = 5 * time.Minute
 
 // Options 是预警接口的可选参数。
-type Options struct {
-	// Lang 是语言代码，如 "zh"、"en"。留空用上游默认。
-	Lang string
-	// LocalTime 是否返回查询地点的当地时间。
-	//
-	// 新一代接口默认给 UTC，不传 localTime 时间会整整差 8 小时。
-	LocalTime bool
-}
+//
+// 它是 [github.com/KanoCifer/qwx/v1.Options] 的别名：天气与预警两个端点族
+// 接受同一组可选参数，类型放在代际共享包里。
+type Options = v1.Options
 
 // params 是影响结果的查询参数。
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
-func (o Options) params() cachekey.Params {
+func params(o Options) cachekey.Params {
 	return cachekey.Params{Lang: o.Lang, LocalTime: o.LocalTime}
 }
 
