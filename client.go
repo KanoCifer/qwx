@@ -295,7 +295,7 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 		c.logRetry(ctx, req, i+1, responseStatus(resp), err)
 
 		select {
-		case <-time.After(time.Duration(retryDelay)):
+		case <-time.After(retryDelay):
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
