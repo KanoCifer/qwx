@@ -96,10 +96,12 @@ type Precipitation struct {
 	Intensity v1.Value `json:"intensity"`
 	// Probability 是降水概率（0~1）。
 	//
-	// 实时天气接口没有这个字段，逐小时预报才有。用指针区分「没有」
-	// 与「概率为 0」。
+	// 实时天气接口没有这个字段，逐小时预报与逐日预报的白天/夜间时段
+	// 才有。用指针区分「没有」与「概率为 0」。
 	Probability *float64 `json:"probability,omitempty"`
-	// Type 是降水类型："none" / "rain" / "snow"。
+	// Type 是降水类型代码，如 "rain"、"snow"、"none"。
+	//
+	// 上游会新增类型，不要依赖枚举的完备性。
 	Type string `json:"type"`
 }
 
@@ -243,8 +245,11 @@ type DayNight struct {
 	TemperatureMin v1.Value `json:"temperatureMin"`
 	// Wind 是风。
 	Wind Wind `json:"wind"`
-	// WindGust 是阵风。
-	WindGust WindGust `json:"windGust"`
+	// WindGustMax 是时段内的最大阵风。
+	//
+	// 上游 daily 端点的白天/夜间时段用 windGustMax，与 current、hourly
+	// 端点的 windGust 不是同一个键。
+	WindGustMax WindGust `json:"windGustMax"`
 	// Precipitation 是降水情况。
 	Precipitation Precipitation `json:"precipitation"`
 	// Humidity 是相对湿度，0~1 的比例。

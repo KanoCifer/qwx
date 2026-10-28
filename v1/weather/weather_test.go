@@ -132,6 +132,86 @@ func TestDailyRejectsOutOfRange(t *testing.T) {
 	}
 }
 
+func TestDailyDayNightShape(t *testing.T) {
+	// 上游 daily 端点的白天/夜间时段用 windGustMax，与 current、hourly
+	// 端点的 windGust 不是同一个键。
+	body := `{
+	  "metadata": {"tag": "abc"},
+	  "days": [{
+	    "forecastStartTime": "2024-08-10T22:00Z",
+	    "forecastEndTime": "2024-08-11T22:00Z",
+	    "astro": {"sunrise": "2024-08-11T04:22Z", "sunset": "2024-08-11T19:34Z",
+	               "moonPhase": "waning-gibbous"},
+	    "temperatureMax": {"value": 29.94, "unit": "°C"},
+	    "temperatureMin": {"value": 20.93, "unit": "°C"},
+	    "temperatureAvg": {"value": 25.57, "unit": "°C"},
+	    "uvIndexMax": 6,
+	    "daytime": {
+	      "forecastStartTime": "2024-08-11T05:00Z",
+	      "forecastEndTime": "2024-08-11T17:00Z",
+	      "condition": {"text": "小雨", "code": "305"},
+	      "temperatureMax": {"value": 29.94, "unit": "°C"},
+	      "temperatureMin": {"value": 20.93, "unit": "°C"},
+	      "wind": {"direction": {"degree": 270, "compass": "w"},
+	               "speed": {"value": 1.87, "unit": "m/s"}, "scale": 2},
+	      "windGustMax": {"value": 6.64, "unit": "m/s"},
+	      "precipitation": {"amount": {"value": 0.75, "unit": "mm"},
+	                        "probability": 0.64, "type": "rain"},
+	      "cloudCover": 0.32,
+	      "humidity": 0.52
+	    },
+	    "nighttime": {
+	      "forecastStartTime": "2024-08-11T17:00Z",
+	      "forecastEndTime": "2024-08-12T05:00Z",
+	      "condition": {"text": "晴间多云", "code": "103"},
+	      "temperatureMax": {"value": 29.8, "unit": "°C"},
+	      "temperatureMin": {"value": 19.95, "unit": "°C"},
+	      "wind": {"direction": {"degree": 343, "compass": "nnw"},
+	               "speed": {"value": 2.33, "unit": "m/s"}, "scale": 2},
+	      "windGustMax": {"value": 7.16, "unit": "m/s"},
+	      "precipitation": {"amount": {"value": 0, "unit": "mm"},
+	                        "probability": 0, "type": "none"},
+	      "cloudCover": 0.34,
+	      "humidity": 0.56
+	    }
+	  }]
+	}`
+	fs := testutil.NewFakeServer(t, body)
+	c := weather.New(testutil.NewClient(t, fs))
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	got, err := c.Daily(context.Background(), loc, 1, weather.Options{})
+	if err != nil {
+		t.Fatalf("Daily: %v", err)
+	}
+	if len(got.Days) != 1 {
+		t.Fatalf("days = %d, want 1", len(got.Days))
+	}
+	day := got.Days[0]
+	if day.Astro == nil || day.Astro.MoonPhase != "waning-gibbous" {
+		t.Errorf("astro = %+v, want moonPhase waning-gibbous", day.Astro)
+	}
+	if day.TemperatureAvg.Value != 25.57 {
+		t.Errorf("temperatureAvg = %v, want 25.57", day.TemperatureAvg.Value)
+	}
+	if day.UVIndexMax != 6 {
+		t.Errorf("uvIndexMax = %v, want 6", day.UVIndexMax)
+	}
+	if day.Daytime.WindGustMax.Value != 6.64 {
+		t.Errorf("daytime windGustMax = %v, want 6.64", day.Daytime.WindGustMax.Value)
+	}
+	if day.Nighttime.WindGustMax.Value != 7.16 {
+		t.Errorf("nighttime windGustMax = %v, want 7.16", day.Nighttime.WindGustMax.Value)
+	}
+	if day.Daytime.Precipitation.Probability == nil || *day.Daytime.Precipitation.Probability != 0.64 {
+		t.Errorf("daytime probability = %v, want 0.64", day.Daytime.Precipitation.Probability)
+	}
+	// 概率为 0 与没有该字段是两回事：nighttime 给了 0，不能是 nil。
+	if day.Nighttime.Precipitation.Probability == nil {
+		t.Fatal("nighttime probability = nil, want 0")
+	}
+}
+
 func TestCacheKeyIncludesParams(t *testing.T) {
 	fs := testutil.NewFakeServer(t, `{"metadata":{"tag":"t"}}`)
 	c := weather.New(testutil.NewClient(t, fs, qwx.WithCache(qwx.NewMemoryCache())))
