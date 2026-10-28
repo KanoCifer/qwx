@@ -12,7 +12,10 @@ import (
 )
 
 // DefaultTimeout 是 HTTP 请求的默认超时。
-const DefaultTimeout = 30 * time.Second
+const (
+	DefaultTimeout = 30 * time.Second
+	maxRetry       = 3
+)
 
 // Client 是和风天气 API 的基础客户端。
 //
@@ -170,6 +173,39 @@ func decode(payload []byte, out any) error {
 	return nil
 }
 
+// 带退避，重试的HTTP请求
+func doWithRetry(ctx context.Context, cli *http.Client, req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	for i := 0; i <= maxRetry; i++ {
+		resp, err = cli.Do(req)
+		if err == nil && resp.StatusCode < 500 {
+			return resp, nil
+		}
+
+		// 最后一轮或调用方已断开：不再重试
+		if i == maxRetry || ctx.Err() != nil {
+			if ctx.Err() != nil && resp != nil {
+				resp.Body.Close()
+			}
+			return resp, err
+		}
+
+		if resp != nil {
+			resp.Body.Close()
+		}
+
+		select {
+		case <-time.After(time.Duration(i+1) * time.Second):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	return resp, err
+}
+
 // fetch 发起一次真实的上游请求，返回原始响应体。
 func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
 	u := c.apiHost + req.Path
@@ -189,7 +225,7 @@ func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := c.http.Do(httpReq)
+	resp, err := doWithRetry(ctx, c.http, httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUpstreamUnavailable, err)
 	}
