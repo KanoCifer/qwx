@@ -1,6 +1,7 @@
 // Package rediscache 提供基于 Redis 的 qwx.Cache 实现。
 //
 // 它是独立模块（自带 go.mod，依赖 go-redis），根模块保持零第三方依赖。
+// go-redis v9.23.0 起要求 Go 1.26，本模块的最低 Go 版本随之是 1.26。
 // 需要 Redis 缓存时单独引入：
 //
 //	go get github.com/KanoCifer/qwx/rediscache

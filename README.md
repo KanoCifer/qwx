@@ -27,7 +27,7 @@ go get github.com/KanoCifer/qwx
 
 要求 Go 1.24 及以上。
 
-需要 Redis 缓存时，额外引入独立的缓存模块（它依赖 go-redis，核心包不受影响）：
+需要 Redis 缓存时，额外引入独立的缓存模块（它依赖 go-redis，核心包不受影响；go-redis v9.23.0 起要求 Go 1.26）：
 
 ```bash
 go get github.com/KanoCifer/qwx/rediscache

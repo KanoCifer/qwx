@@ -47,7 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.24", "1.25", "1.26"]
+        # go-redis v9.23.0 起要求 Go 1.26，子模块只在这一个版本上跑
+        go: ["1.26"]
     defaults:
       run:
         working-directory: rediscache
