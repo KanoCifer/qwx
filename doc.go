@@ -20,6 +20,9 @@
 // geo 是唯一的例外：它的四个检索端点共享同一个地点类型，拆开会让该类型
 // 失去归属。
 //
+// 旧一代与 GeoAPI 的结果带 refer 对象（数据来源与许可），用 [Refer] 表达；
+// 新一代的来源信息在 [github.com/KanoCifer/qwx/v1.Metadata] 的 Attributions 里。
+//
 // 两代的字段形态、单位、时间基准、错误体与缓存键都不同，拆包是为了让它们
 // 不在同一处混用。新一代的基础类型（[github.com/KanoCifer/qwx/v1.Metadata]、
 // [github.com/KanoCifer/qwx/v1.Value]）放在新一代的包里，不在本包 ——

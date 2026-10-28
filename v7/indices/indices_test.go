@@ -17,7 +17,11 @@ func TestIndices(t *testing.T) {
   "daily": [{
     "date": "2021-12-16", "type": "1", "name": "运动指数",
     "level": "3", "category": "较不宜", "text": "天气较好，但考虑天气寒冷。"
-  }]
+  }],
+  "refer": {
+    "sources": ["https://developer.qweather.com/attribution.html"],
+    "license": ["QWeather Developers License"]
+  }
 }`
 	fs := testutil.NewFakeServer(t, body)
 	c := indices.New(testutil.NewClient(t, fs))
@@ -36,6 +40,10 @@ func TestIndices(t *testing.T) {
 	}
 	if got.Daily[0].Level != "3" {
 		t.Errorf("level = %q, want 3", got.Daily[0].Level)
+	}
+	// 展示上游数据时要一并展示来源与许可声明。
+	if len(got.Refer.Sources) != 1 || len(got.Refer.License) != 1 {
+		t.Errorf("refer = %+v, want 1 source and 1 license", got.Refer)
 	}
 }
 

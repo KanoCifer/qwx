@@ -341,6 +341,8 @@ for _, s := range cities.Refer.Sources {
 }
 ```
 
+旧一代三个端点（潮汐、生活指数、分钟级降水）的结果同样带 `Refer`，取法一样。
+
 ### 潮汐
 
 潮汐站 ID 用 `geo.LookupPOI` 配 `geo.POITSTA` 检索，日期用站点当地当天：
@@ -609,7 +611,7 @@ w := weather.New(fakeDoer{})
 
 | 包 | 承载 |
 | --- | --- |
-| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、两代共用的请求结构 |
+| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、两代共用的请求结构、`Refer` |
 | `qwx/v1` | 新一代跨端点族共用的基础类型（`Metadata`、`Value`） |
 | `qwx/v1/weather` | 新一代天气 `/weather/v1/*` |
 | `qwx/v1/airquality` | 新一代空气质量 `/airquality/v1/*` |

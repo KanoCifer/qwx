@@ -140,14 +140,9 @@ func (p Place) Coordinates() (lat, lon float64, err error) {
 
 // Refer 是数据来源与许可信息。
 //
-// GeoAPI 在结果里带一个 refer 对象，说明数据来源与授权方式。展示
-// GeoAPI 数据时需要一并展示这些信息。
-type Refer struct {
-	// Sources 是原始数据来源，或数据源说明。上游可能给空。
-	Sources []string `json:"sources"`
-	// License 是数据许可或版权声明。上游可能给空。
-	License []string `json:"license"`
-}
+// 它是 [qwx.Refer] 的别名：GeoAPI 与旧一代接口的 refer 对象同形，
+// 放根包由四族共用。保留这个别名是为了不改动已发布的 geo.Refer。
+type Refer = qwx.Refer
 
 // CityResult 是城市检索的结果。
 type CityResult struct {

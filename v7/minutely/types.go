@@ -27,6 +27,10 @@ type Result struct {
 	Summary string `json:"summary"`
 	// Minutely 是逐 5 分钟的降水预报。
 	Minutely []Minutely `json:"minutely"`
+	// Refer 是数据来源与许可信息。
+	//
+	// 上游在结果里带 refer 对象，展示这些数据时需要一并展示。
+	Refer qwx.Refer `json:"refer"`
 }
 
 // Minutely 是一条分钟级降水预报。

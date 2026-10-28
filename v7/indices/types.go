@@ -37,6 +37,10 @@ type Result struct {
 	FXLink string `json:"fxLink"`
 	// Daily 是逐日指数。
 	Daily []DailyIndex `json:"daily"`
+	// Refer 是数据来源与许可信息。
+	//
+	// 上游在结果里带 refer 对象，展示这些数据时需要一并展示。
+	Refer qwx.Refer `json:"refer"`
 }
 
 // DailyIndex 是一天的生活指数。

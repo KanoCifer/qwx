@@ -27,6 +27,10 @@ type Result struct {
 	TideTable []Tide `json:"tideTable"`
 	// TideHourly 是逐小时潮位。
 	TideHourly []TideHourly `json:"tideHourly"`
+	// Refer 是数据来源与许可信息。
+	//
+	// 上游在结果里带 refer 对象，展示这些数据时需要一并展示。
+	Refer qwx.Refer `json:"refer"`
 }
 
 // Tide 是一个潮汐时刻（高低潮）。

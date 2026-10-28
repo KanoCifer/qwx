@@ -15,7 +15,11 @@ func TestTide(t *testing.T) {
   "code": "200",
   "updateTime": "2021-02-04T05:02+08:00",
   "tideTable": [{"fxTime": "2021-02-06T03:48+08:00", "height": "2.17", "type": "H"}],
-  "tideHourly": [{"fxTime": "2021-02-06T00:00+08:00", "height": "1.02"}]
+  "tideHourly": [{"fxTime": "2021-02-06T00:00+08:00", "height": "1.02"}],
+  "refer": {
+    "sources": ["https://developer.qweather.com/attribution.html"],
+    "license": ["QWeather Developers License"]
+  }
 }`
 	fs := testutil.NewFakeServer(t, body)
 	c := ocean.New(testutil.NewClient(t, fs))
@@ -34,6 +38,10 @@ func TestTide(t *testing.T) {
 	// 高度保持字符串，保留上游的小数位表达。
 	if got.TideTable[0].Height != "2.17" {
 		t.Errorf("height = %q, want 2.17", got.TideTable[0].Height)
+	}
+	// 展示上游数据时要一并展示来源与许可声明。
+	if len(got.Refer.Sources) != 1 || len(got.Refer.License) != 1 {
+		t.Errorf("refer = %+v, want 1 source and 1 license", got.Refer)
 	}
 }
 

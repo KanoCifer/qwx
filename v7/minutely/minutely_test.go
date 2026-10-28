@@ -18,7 +18,11 @@ func TestMinutely(t *testing.T) {
   "minutely": [
     {"fxTime": "2021-12-16T18:55+08:00", "precip": "0.00", "type": "rain"},
     {"fxTime": "2021-12-16T19:00+08:00", "precip": "0.15", "type": "rain"}
-  ]
+  ],
+  "refer": {
+    "sources": ["https://developer.qweather.com/attribution.html"],
+    "license": ["QWeather Developers License"]
+  }
 }`
 	fs := testutil.NewFakeServer(t, body)
 	c := minutely.New(testutil.NewClient(t, fs))
@@ -40,6 +44,10 @@ func TestMinutely(t *testing.T) {
 	// precip 保持字符串：空串与 "0.00" 含义不同。
 	if got.Minutely[0].Precip != "0.00" {
 		t.Errorf("precip = %q, want 0.00", got.Minutely[0].Precip)
+	}
+	// 展示上游数据时要一并展示来源与许可声明。
+	if len(got.Refer.Sources) != 1 || len(got.Refer.License) != 1 {
+		t.Errorf("refer = %+v, want 1 source and 1 license", got.Refer)
 	}
 }
 
