@@ -1,23 +1,30 @@
 # qwx
 
+[![CI](https://img.shields.io/github/actions/workflow/status/KanoCifer/qwx/ci.yml?branch=main)](https://github.com/KanoCifer/qwx/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Release](https://img.shields.io/github/v/release/KanoCifer/qwx?display_name=tag)](https://github.com/KanoCifer/qwx/releases)
+[![License](https://img.shields.io/github/license/KanoCifer/qwx)](https://github.com/KanoCifer/qwx/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg)](https://pkg.go.dev/github.com/KanoCifer/qwx)
 [![Go Report Card](https://goreportcard.com/badge/github.com/KanoCifer/qwx)](https://goreportcard.com/report/github.com/KanoCifer/qwx)
+[![支持端点](https://img.shields.io/badge/%E6%94%AF%E6%8C%81%E7%AB%AF%E7%82%B9-23%20%E4%B8%AA-blue)](https://github.com/KanoCifer/qwx#支持的接口)
+[![核心包零依赖](https://img.shields.io/badge/%E6%A0%B8%E5%BF%83%E5%8C%85-0%20deps-success)](https://github.com/KanoCifer/qwx/blob/main/go.mod)
+[![Stars](https://img.shields.io/github/stars/KanoCifer/qwx?style=social)](https://github.com/KanoCifer/qwx/stargazers)
+
+[简体中文](README.md) | [English](README_EN.md)
 
 和风天气（QWeather）开发服务的 Go 客户端。
 
-官方只维护 iOS 与 Android SDK，服务端语言没有官方实现。本包是社区维护的
-Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，零第三方依赖。
+官方只维护 iOS 与 Android SDK，服务端语言没有官方实现。qwx 是社区维护的 Go SDK，覆盖上游文档中的核心接口族，返回类型化的 Go 结构体，核心包零第三方依赖。
 
 ## 特性
 
-- **核心接口全覆盖**：GeoAPI 城市/POI 检索、天气预报（新一代 `/weather/v1/*`）、
-  空气质量、预警、海洋潮汐、生活指数、分钟级降水预报
-- **按资源族分包**：一个包 = 一个上游资源族，字段形态与缓存键不互相污染
+- **核心接口全覆盖**：GeoAPI 城市与 POI 检索、天气预报（新一代 `/weather/v1/*`）、空气质量、预警、太阳辐射预报、海洋潮汐、生活指数、分钟级降水预报、台风、天文
+- **按资源族分包**：一个包对应一个上游资源族，字段形态与缓存键互不污染
 - **两种认证**：JWT（Ed25519 签名，官方推荐）与 API KEY
 - **零依赖**：核心包只用标准库，`go.mod` 没有 `require`
-- **缓存可插拔**：定义 `Cache` 接口，Redis / 内存 / 自定义都行
-- **日志可插拔**：用标准库 `log/slog`，不注入就不输出
-- **错误可分类**：用 `errors.Is` 判断错误类别，不用解析字符串
+- **缓存可插拔**：定义 `Cache` 接口，Redis、内存与自定义实现都可注入
+- **日志可插拔**：使用标准库 `log/slog`，不注入时不输出
+- **错误可分类**：用 `errors.Is` 判断类别，无需解析错误字符串
 - **并发安全**：`Client` 无状态，可直接共享
 
 ## 安装
@@ -28,7 +35,7 @@ go get github.com/KanoCifer/qwx
 
 要求 Go 1.24 及以上。
 
-需要 Redis 缓存时，额外引入独立的缓存模块（它依赖 go-redis，核心包不受影响；go-redis v9.23.0 起要求 Go 1.26）：
+需要 Redis 缓存时，额外引入独立的缓存模块。它依赖 go-redis v9.23.0，最低 Go 版本是 1.26，核心模块不受影响：
 
 ```bash
 go get github.com/KanoCifer/qwx/rediscache
@@ -36,7 +43,7 @@ go get github.com/KanoCifer/qwx/rediscache
 
 ## 快速开始
 
-三步：造认证、造基础客户端、造接口族的客户端。
+三步：创建认证、创建基础客户端、创建接口族的客户端。
 
 ```go
 package main
@@ -90,8 +97,7 @@ func main() {
 }
 ```
 
-仓库里的 `examples/basic` 是一个更长的例子，覆盖天气、逐时逐日、城市检索与
-生活指数，走 API KEY 认证，从环境变量读配置：
+仓库里的 `examples/basic` 是一个更长的例子，覆盖天气、逐时逐日、城市检索与生活指数，走 API KEY 认证，从环境变量读配置：
 
 ```bash
 export QWEATHER_API_KEY="你的 API KEY"
@@ -99,9 +105,7 @@ export QWEATHER_API_HOST="abcxyz.qweatherapi.com"
 go run ./examples/basic
 ```
 
-API Host 只能从控制台「设置」页取，没有默认值：公共域名 `devapi.qweather.com`
-（2026-01 停服）、`api.qweather.com`、`geoapi.qweather.com`（2026-06 停服）
-陆续失效。Host 只写域名不带 scheme 时，SDK 自动补 `https://`。
+API Host 只能从控制台「设置」页取，没有默认值：公共域名 `devapi.qweather.com`（2026-01 停服）、`api.qweather.com`、`geoapi.qweather.com`（2026-06 停服）陆续失效。Host 只写域名不带 scheme 时，SDK 自动补 `https://`。
 
 ## 使用指南
 
@@ -129,15 +133,11 @@ auth, err := qwx.NewJWTAuth(qwx.JWTConfig{
 })
 ```
 
-三项各对应 JWT 的一个位置：`kid` 是凭据 ID，`sub` 是项目 ID，`iss` 是 Developer ID
-（控制台「设置」页，形如 Q 开头的 10 位字母数字）。`iss` 官方口径是必填的签发者，
-缺失时上游按它校验凭据归属会失败，所以 SDK 直接在构造时返回 `ErrInvalidConfig`，
-不等到上游 401 才发现漏配。
+三项各对应 JWT 的一个位置：`kid` 是凭据 ID，`sub` 是项目 ID，`iss` 是 Developer ID（控制台「设置」页，形如 Q 开头的 10 位字母数字）。`iss` 官方口径是必填的签发者，缺失时上游按它校验凭据归属会失败，所以 SDK 直接在构造时返回 `ErrInvalidConfig`，不等到上游 401 才发现漏配。
 
-JWT 有效期 15 分钟，SDK 在过期前 1 分钟自动重签，调用方不用管。签名有锁，
-并发安全。
+JWT 有效期 15 分钟，SDK 在过期前 1 分钟自动重签，调用方不用管。签名有锁，并发安全。
 
-API KEY （不推荐使用）适合存量项目：
+API KEY（不推荐使用）适合存量项目：
 
 ```go
 import "github.com/KanoCifer/qwx"
@@ -145,26 +145,57 @@ import "github.com/KanoCifer/qwx"
 auth, err := qwx.NewAPIKeyAuth("YOUR_API_KEY")
 ```
 
-> 官方已公告：2027 年 1 月 1 日起限制用 API KEY 认证的每日请求量，
-> 且 SDK 5+ 不再支持 API KEY。新项目建议直接用 JWT。
+> 官方已公告：2027-01-01 起限制用 API KEY 认证的每日请求量，且 SDK 5+ 不再支持 API KEY。新项目建议直接用 JWT。
+
+### 客户端选项
+
+所有选项都传给基础客户端构造器：
+
+| 选项 | 作用 |
+| --- | --- |
+| `qwx.WithCache` | 注入 `Cache` 实现，不注入时每次请求都打到上游 |
+| `qwx.WithTTLPolicy` | 按端点决定缓存时长 |
+| `qwx.WithLogger` | 注入 `log/slog` 日志器，不注入时默认静默 |
+| `qwx.WithHTTPClient` | 替换底层 `http.Client`，SDK 不改它的超时 |
+| `qwx.WithAuth` | 覆盖认证方式，等价于构造器传入的 `auth` |
+| `qwx.WithClock` | 注入时钟，供测试断言 JWT 的 `iat` 与 `exp` |
+
+```go
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
+	qwx.WithCache(myRedisCache),
+	qwx.WithTTLPolicy(qwx.TTLMap{weather.EndpointCurrent: 30 * time.Second}),
+	qwx.WithLogger(slog.Default()),
+)
+```
 
 ### 位置
 
 `qwx.Location` 收敛了上游的三种位置形态：
 
 ```go
-import "github.com/KanoCifer/qwx"
+import (
+	"fmt"
+
+	"github.com/KanoCifer/qwx"
+)
 
 // 坐标对，字符串里经度在前
-loc, err := qwx.ParseLocation("116.41,39.92")
+coord, err := qwx.ParseLocation("116.41,39.92")
 if err != nil {
 	return err
 }
+fmt.Println(coord.Lat, coord.Lon)
 
-// 直接构造
-loc = qwx.Location{Lat: 39.92, Lon: 116.41} // 字段是纬度在前
-loc = qwx.Location{ID: "101010100"}          // LocationID
-loc = qwx.Location{Name: "杭州"}              // 地名，只有 GeoAPI 城市/POI 检索认
+// 直接构造，字段是纬度在前
+loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+// LocationID
+station := qwx.Location{ID: "101010100"}
+
+// 地名，只有 GeoAPI 城市/POI 检索认
+city := qwx.Location{Name: "杭州"}
+
+fmt.Println(loc, station, city)
 ```
 
 各端点认哪种形态不一样：
@@ -172,10 +203,12 @@ loc = qwx.Location{Name: "杭州"}              // 地名，只有 GeoAPI 城市
 | 形态 | 谁认 |
 | --- | --- |
 | 坐标对 | 全部端点 |
-| LocationID | GeoAPI 全部端点；行政区划是 9~10 位数字，POI 是数字加字母后缀，潮汐站是 `P` 加数字 |
+| LocationID | `geo.LookupCity`、`geo.LookupPOI`、`astronomy.Sun`、`astronomy.Moon`；行政区划是 9~10 位数字，POI 是数字加字母后缀，潮汐站是 `P` 加数字 |
 | 地名 | 只有 `geo.LookupCity` 与 `geo.LookupPOI` |
 
 新一代只认坐标。手里只有 LocationID 时，先用 `geo.LookupCity` 换成坐标。
+
+坐标顺序分两代：新一代走路径参数，纬度在前（`Location.Path()`）；v7 与 GeoAPI 走查询参数，经度在前（`Location.Query()`）。写反了上游直接回 400。
 
 ### 天气
 
@@ -196,7 +229,7 @@ if err != nil {
 	return err
 }
 fmt.Println(current.Condition.Text, current.Temperature.Value, current.Temperature.Unit)
-fmt.Println(current.Humidity * 100, "%") // 湿度是 0~1 的比例
+fmt.Println(current.Humidity*100, "%") // 湿度是 0~1 的比例
 
 hourly, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: "zh", LocalTime: true})
 if err != nil {
@@ -219,8 +252,7 @@ for _, d := range daily.Days {
 }
 ```
 
-`Hourly` 的 hours 取 1~240，`Daily` 的 days 取 1~10，越界返回 `ErrInvalidParameter`，
-不打上游。列表长度不假设，上游可能给得更少。
+`Hourly` 的 hours 取 1~240，`Daily` 的 days 取 1~10，越界返回 `ErrInvalidParameter`，不打上游。列表长度不假设，上游可能给得更少。
 
 ### 空气质量
 
@@ -252,9 +284,20 @@ for _, s := range cur.Stations {
 	}
 	fmt.Println(s.Name, station.Pollutants)
 }
+
+// 逐日与逐小时预报
+daily, err := aq.Daily(ctx, loc, airquality.Options{Lang: "zh"})
+if err != nil {
+	return err
+}
+hourly, err := aq.Hourly(ctx, loc, airquality.Options{Lang: "zh"})
+if err != nil {
+	return err
+}
+fmt.Println(len(daily.Days), len(hourly.Hours))
 ```
 
-不同标准的 AQI 量纲不同（QAQI 是 0~1，US EPA 是 0~500）。
+不同标准的 AQI 量纲不同（QAQI 是 0~1，US EPA 是 0~500），不要跨标准比较。
 
 ### 预警
 
@@ -279,7 +322,7 @@ for _, a := range result.Alerts {
 }
 ```
 
-预警只认坐标。没有预警时上游返回空列表，`Metadata.ZeroResult` 为 true。
+预警只认坐标。没有预警时上游返回空列表，`Metadata.ZeroResult` 指向 `true`。
 
 ### GeoAPI 检索
 
@@ -331,10 +374,25 @@ for _, c := range top.Cities {
 ```go
 ranges, err := g.POIRange(ctx, qwx.Location{Lat: 30.0, Lon: 122.0}, geo.POIScenic,
 	geo.POIRangeOptions{Lang: "zh", Number: 10, Radius: 20})
+if err != nil {
+	return err
+}
+for _, p := range ranges.POIs {
+	fmt.Println(p.ID, p.Name)
+}
 ```
 
-GeoAPI 的每个结果都带一个 `Refer`，是数据来源与许可声明。展示 GeoAPI 数据时
-要一并展示：
+GeoAPI 的四个检索端点共用一组可选参数：
+
+| 参数 | 作用 | 谁认 |
+| --- | --- | --- |
+| `Lang` | 语言代码，留空用上游默认 | 全部 |
+| `Number` | 返回条数上限，0 用上游默认（10） | 全部 |
+| `Adm` | 上级行政区划的 LocationID，用于排除重名城市 | 城市检索 |
+| `Range` | 搜索范围，ISO 3166 国家代码，如 `cn`、`world` | 城市检索、热门城市 |
+| `City` | 限定 POI 所在城市，城市名或 LocationID | POI 检索 |
+
+GeoAPI 的每个结果都带一个 `Refer`，是数据来源与许可声明。展示 GeoAPI 数据时要一并展示：
 
 ```go
 for _, s := range cities.Refer.Sources {
@@ -342,7 +400,7 @@ for _, s := range cities.Refer.Sources {
 }
 ```
 
-旧一代三个端点（潮汐、生活指数、分钟级降水）的结果同样带 `Refer`，取法一样。
+旧一代（v7）五个端点族（潮汐、生活指数、分钟级降水、台风、天文）的结果同样带 `Refer`，取法一样。
 
 ### 潮汐
 
@@ -427,8 +485,7 @@ for _, m := range result.Minutely {
 }
 ```
 
-只覆盖中国区域，境外坐标上游没有数据。`Precip` 是字符串：空串表示「无此数据」，
-`"0.00"` 表示「真的没下雨」。
+只覆盖中国区域，境外坐标上游没有数据。`Precip` 是字符串：空串表示「无此数据」，`"0.00"` 表示「真的没下雨」。
 
 ### 太阳辐射预报
 
@@ -459,7 +516,25 @@ for _, f := range result.Forecasts {
 }
 ```
 
-要光伏阵列平面辐照度就把 `Extra` 设为 `"poa"`，同时给 `Tilt` 与 `Azimuth`。
+要光伏阵列平面辐照度就把 `Extra` 设为 `"poa"`，同时给 `Tilt` 与 `Azimuth`。这两个字段是指针，用来区分「不传」与「传 0」：
+
+```go
+tilt, azimuth := 30, 180
+result, err := sr.Forecast(ctx, loc, 24, solarradiation.Options{
+	Interval: 60,
+	Extra:    "poa",
+	Tilt:     &tilt,
+	Azimuth:  &azimuth,
+})
+if err != nil {
+	return err
+}
+for _, f := range result.Forecasts {
+	fmt.Println(f.ForecastTime, f.POA.Global.Value, f.POA.Global.Unit)
+}
+```
+
+这一族没有 `lang` 参数，上游不返回文字描述，多传会被拒。
 
 ### 台风
 
@@ -489,6 +564,12 @@ if err != nil {
 	return err
 }
 fmt.Println(len(forecast.Forecast))
+
+track, err := st.Track(ctx, "NP2026")
+if err != nil {
+	return err
+}
+fmt.Println(len(track.Track))
 ```
 
 ### 天文
@@ -496,6 +577,7 @@ fmt.Println(len(forecast.Forecast))
 ```go
 import (
 	"context"
+	"time"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/v7/astronomy"
@@ -504,8 +586,9 @@ import (
 as := astronomy.New(base)
 ctx := context.Background()
 loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+date := time.Now().Format("20060102")
 
-sun, err := as.Sun(ctx, loc, "20260531")
+sun, err := as.Sun(ctx, loc, date)
 if err != nil {
 	return err
 }
@@ -513,17 +596,25 @@ if sun.Sunrise != nil {
 	fmt.Println(*sun.Sunrise, *sun.Sunset)
 }
 
+moon, err := as.Moon(ctx, loc, date, astronomy.Options{Lang: "zh"})
+if err != nil {
+	return err
+}
+fmt.Println(len(moon.MoonPhase))
+
 // 太阳高度角只认坐标，还要给时刻、时区与海拔
-angle, err := as.SolarElevationAngle(ctx, loc, "20260531", "1200", "0800", 43)
+angle, err := as.SolarElevationAngle(ctx, loc, date, "1200", "0800", 43)
 if err != nil {
 	return err
 }
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
+日期格式是 `YYYYMMDD`，上游最多接受未来 60 天（含今天）。
+
 ### 缓存
 
-SDK 不内置缓存实现，注入你已有的：
+SDK 不内置缓存实现，注入已有实现：
 
 ```go
 import "github.com/KanoCifer/qwx"
@@ -560,11 +651,9 @@ defer cache.Close()
 base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(cache))
 ```
 
-`rediscache` 支持 TLS（`TLSConfig`）、ACL 用户名（`Username`）、指定库（`DB`）与
-连接超时。构造时不会连 Redis，用 `cache.Ping(ctx)` 做启动自检。
+`rediscache` 支持 TLS（`TLSConfig`）、ACL 用户名（`Username`）、指定库（`DB`）与连接超时。构造时不会连 Redis，用 `cache.Ping(ctx)` 做启动自检。
 
-缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），
-TTL 按端点的数据更新节奏设定。缓存键不含 API Host。
+缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），TTL 按端点的数据更新节奏设定。缓存键不含 API Host，一个 `Cache` 实例只服务一个 Host。
 
 要按端点调 TTL，传一份策略：
 
@@ -586,22 +675,24 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 )
 ```
 
-端点常量在各端点包里（`weather.EndpointCurrent`、`geo.EndpointCity` 等）。
-单端点包只导出一个端点时，名字就是 `Endpoint`（`alert.Endpoint`、
-`ocean.Endpoint`）。默认时长：
+端点常量在各端点包里（`weather.EndpointCurrent`、`geo.EndpointCity` 等）。单端点包只导出一个端点时，名字就是 `Endpoint`（`alert.Endpoint`、`ocean.Endpoint`）。默认时长：
 
-| 端点 | 默认 TTL |
-| --- | --- |
-| 天气实况 | 10 分钟 |
-| 逐时 / 逐日预报 | 1 小时 |
-| 空气质量实况 / 监测站 | 30 分钟 |
-| 空气质量预报 | 1 小时 |
-| 预警 / 分钟级降水 | 5 分钟 |
-| 潮汐 / 生活指数 | 1 小时 |
-| GeoAPI | 24 小时 |
+| 端点 | 端点常量 | 默认 TTL |
+| --- | --- | --- |
+| 天气实况 | `weather.EndpointCurrent` | 10 分钟 |
+| 逐时、逐日预报 | `weather.EndpointHourly`、`weather.EndpointDaily` | 1 小时 |
+| 空气质量实况、监测站 | `airquality.EndpointCurrent`、`airquality.EndpointStation` | 30 分钟 |
+| 空气质量预报 | `airquality.EndpointDaily`、`airquality.EndpointHourly` | 1 小时 |
+| 预警 | `alert.Endpoint` | 5 分钟 |
+| 分钟级降水 | `minutely.Endpoint` | 5 分钟 |
+| 潮汐、生活指数 | `ocean.Endpoint`、`indices.Endpoint` | 1 小时 |
+| 太阳辐射预报 | `solarradiation.Endpoint` | 1 小时 |
+| 台风列表 | `storm.EndpointList` | 24 小时 |
+| 台风预报、路径 | `storm.EndpointForecast`、`storm.EndpointTrack` | 1 小时 |
+| 天文 | `astronomy.EndpointSun` 等三个 | 24 小时 |
+| GeoAPI | `geo.EndpointCity` 等四个 | 24 小时 |
 
-需要按时间或负载动态调整时用 `qwx.TTLPolicyFunc`。单次请求要临时绕过缓存，
-用 `qwx.WithTTLOverride(ctx, 0)`，优先级最高。
+需要按时间或负载动态调整时用 `qwx.TTLPolicyFunc`。单次请求要临时绕过缓存，用 `qwx.WithTTLOverride(ctx, 0)`，优先级最高。
 
 > 改 TTL 不改缓存键：已写入的旧条目按写入时的 TTL 到期，想立刻生效要换缓存实例或手动清键。
 
@@ -625,9 +716,11 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithLogger(slog.D
 | Warn | `upstream retry` | 5xx 或网络错误触发重试 |
 | Error | `upstream request failed` | 网络错误、超时 |
 | Error | `decode response failed` | 响应不是合法 JSON |
+| Error | `build request failed` / `sign request failed` | 请求构造或签名失败 |
 
-字段有 `endpoint`、`path`、`status`、`duration_ms`、`cache_key`、`attempt` 等。
-认证凭据走请求头，不进日志；响应体也不进日志；错误文本里的 URL 会剥掉查询串。
+字段有 `endpoint`、`method`、`path`、`status`、`duration_ms`、`cache_key`、`attempt`、`error`、`upstream_code`、`upstream_title`。
+
+认证凭据走请求头，不进日志；响应体也不进日志；错误文本里的 URL 会剥掉查询串。路径与缓存键里可能带位置坐标，SDK 不对坐标脱敏，需要脱敏就在注入时包一层自己的 handler。
 
 默认 logger 是 `slog.DiscardHandler`：不构造字段，每个请求的额外开销只有一次 `Enabled` 调用。
 
@@ -671,15 +764,13 @@ if errors.As(err, &ue) {
 | `ErrUnauthorized` | 上游 401 / 403 |
 | `ErrUpstreamUnavailable` | 上游 5xx 或网络错误 |
 
-客户端先校验，参数越界与位置形态不对都在本地返回，不打上游。上游 5xx 与网络
-错误会按退避重试，最多 3 次；4xx 不重试。
+客户端先校验，参数越界与位置形态不对都在本地返回，不打上游。上游 5xx 与网络错误会按退避重试，退避间隔依次是 1 秒、2 秒、3 秒，最多重试 3 次；4xx 不重试。
 
 ### 并发与超时
 
-`qwx.Client` 无状态，可以直接共享。所有方法都接受 `context.Context`，
-超时与取消由 ctx 控制。
+`qwx.Client` 无状态，可以直接共享。所有方法都接受 `context.Context`，超时与取消由 ctx 控制。
 
-要换 HTTP 客户端就注入一个，注意 SDK 不会改它的超时：
+默认 HTTP 超时是 `qwx.DefaultTimeout`（30 秒）。要换 HTTP 客户端就注入一个，注意 SDK 不会改它的超时：
 
 ```go
 import (
@@ -714,31 +805,31 @@ w := weather.New(fakeDoer{})
 
 ## 支持的接口
 
-| 包 | 方法 | 上游接口 |
-| --- | --- | --- |
-| `geo` | `LookupCity` | `GET /geo/v2/city/lookup` |
-| `geo` | `LookupPOI` | `GET /geo/v2/poi/lookup` |
-| `geo` | `POIRange` | `GET /geo/v2/poi/range` |
-| `geo` | `TopCities` | `GET /geo/v2/city/top` |
-| `v1/weather` | `Current` | `GET /weather/v1/current/{lat}/{lon}` |
-| `v1/weather` | `Hourly` | `GET /weather/v1/hourly/{lat}/{lon}` |
-| `v1/weather` | `Daily` | `GET /weather/v1/daily/{lat}/{lon}` |
-| `v1/airquality` | `Current` | `GET /airquality/v1/current/{lat}/{lon}` |
-| `v1/airquality` | `Daily` | `GET /airquality/v1/daily/{lat}/{lon}` |
-| `v1/airquality` | `Hourly` | `GET /airquality/v1/hourly/{lat}/{lon}` |
-| `v1/airquality` | `Station` | `GET /airquality/v1/stations/{locationId}` |
-| `v1/alert` | `Current` | `GET /weatheralert/v1/current/{lat}/{lon}` |
-| `v1/solarradiation` | `Forecast` | `GET /solarradiation/v1/forecast/{lat}/{lon}` |
-| `v7/ocean` | `Tide` | `GET /v7/ocean/tide` |
-| `v7/indices` | `Indices` | `GET /v7/indices/{days}d` |
-| `v7/indices` | `IndicesMulti` | `GET /v7/indices/{days}d` |
-| `v7/minutely` | `Minutely` | `GET /v7/minutely/5m` |
-| `v7/storm` | `List` | `GET /v7/tropical/storm-list` |
-| `v7/storm` | `Forecast` | `GET /v7/tropical/storm-forecast` |
-| `v7/storm` | `Track` | `GET /v7/tropical/storm-track` |
-| `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` |
-| `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` |
-| `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` |
+| 包 | 方法 | 上游接口 | 端点常量 |
+| --- | --- | --- | --- |
+| `geo` | `LookupCity` | `GET /geo/v2/city/lookup` | `EndpointCity` |
+| `geo` | `LookupPOI` | `GET /geo/v2/poi/lookup` | `EndpointPOI` |
+| `geo` | `POIRange` | `GET /geo/v2/poi/range` | `EndpointPOIRange` |
+| `geo` | `TopCities` | `GET /geo/v2/city/top` | `EndpointTopCities` |
+| `v1/weather` | `Current` | `GET /weather/v1/current/{lat}/{lon}` | `EndpointCurrent` |
+| `v1/weather` | `Hourly` | `GET /weather/v1/hourly/{lat}/{lon}` | `EndpointHourly` |
+| `v1/weather` | `Daily` | `GET /weather/v1/daily/{lat}/{lon}` | `EndpointDaily` |
+| `v1/airquality` | `Current` | `GET /airquality/v1/current/{lat}/{lon}` | `EndpointCurrent` |
+| `v1/airquality` | `Daily` | `GET /airquality/v1/daily/{lat}/{lon}` | `EndpointDaily` |
+| `v1/airquality` | `Hourly` | `GET /airquality/v1/hourly/{lat}/{lon}` | `EndpointHourly` |
+| `v1/airquality` | `Station` | `GET /airquality/v1/stations/{locationId}` | `EndpointStation` |
+| `v1/alert` | `Current` | `GET /weatheralert/v1/current/{lat}/{lon}` | `Endpoint` |
+| `v1/solarradiation` | `Forecast` | `GET /solarradiation/v1/forecast/{lat}/{lon}` | `Endpoint` |
+| `v7/ocean` | `Tide` | `GET /v7/ocean/tide` | `Endpoint` |
+| `v7/indices` | `Indices` | `GET /v7/indices/{days}d` | `Endpoint` |
+| `v7/indices` | `IndicesMulti` | `GET /v7/indices/{days}d` | `Endpoint` |
+| `v7/minutely` | `Minutely` | `GET /v7/minutely/5m` | `Endpoint` |
+| `v7/storm` | `List` | `GET /v7/tropical/storm-list` | `EndpointList` |
+| `v7/storm` | `Forecast` | `GET /v7/tropical/storm-forecast` | `EndpointForecast` |
+| `v7/storm` | `Track` | `GET /v7/tropical/storm-track` | `EndpointTrack` |
+| `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` | `EndpointSun` |
+| `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` | `EndpointMoon` |
+| `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` | `EndpointAngle` |
 
 包结构：
 
@@ -758,24 +849,31 @@ w := weather.New(fakeDoer{})
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
 | `qwx/rediscache` | Redis 缓存实现（独立模块，依赖 go-redis） |
 
-一个包 = 一个上游资源族。`geo` 是唯一的例外：它的四个检索端点共享同一个地点
-类型，拆开会让该类型失去归属。
+一个包 = 一个上游资源族。`geo` 是唯一的例外：它的四个检索端点共享同一个地点类型，拆开会让该类型失去归属。
 
-`rediscache` 是独立的 Go 模块（自带 `go.mod`），不是上表的子包 —— 它不提供
-接口，只提供缓存实现，依赖 go-redis 所以不并入核心模块。
+`rediscache` 是独立的 Go 模块（自带 `go.mod`），不是上表的子包 —— 它不提供接口，只提供缓存实现，依赖 go-redis 所以不并入核心模块。
 
-`Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、
-`/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
+`Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、`/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
 
-## qwx 封装的redis缓存
+## qwx 封装的 redis 缓存
 
 ```bash
 go get github.com/KanoCifer/qwx/rediscache
 ```
 
-它的构造函数不连 Redis，地址写错要靠 `cache.Ping(ctx)` 才暴露。`Set` 的 ttl
-小于等于 0 会返回 `qwx.ErrInvalidParameter` 且不写入 —— 不带过期时间的缓存
-会一直是旧数据。
+它的构造函数不连 Redis，地址写错要靠 `cache.Ping(ctx)` 才暴露。`Set` 的 ttl 小于等于 0 会返回 `qwx.ErrInvalidParameter` 且不写入 —— 不带过期时间的缓存会一直是旧数据。
+
+## 文档
+
+| 场景 | 文档 |
+| --- | --- |
+| 接认证、配凭据、token 过期、401/403 | [docs/auth.md](docs/auth.md) |
+| 写调用代码：参数上限、位置形态、返回类型、字段单位 | [docs/contract.md](docs/contract.md) |
+| 上游行为与文档不符：400、空结果、时间对不上 | [docs/gotchas.md](docs/gotchas.md) |
+| 决定重试与降级策略、读上游错误细节 | [docs/errors.md](docs/errors.md) |
+| 接自己的缓存、调 TTL、排查缓存串味 | [docs/caching.md](docs/caching.md) |
+| 接日志、排查请求记录 | [docs/logging.md](docs/logging.md) |
+| 跑测试、联网冒烟 | [docs/verification.md](docs/verification.md) |
 
 ## 官方文档
 
