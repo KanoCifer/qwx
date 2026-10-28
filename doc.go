@@ -60,6 +60,11 @@
 // 本包不内置缓存实现，而是定义 [Cache] 接口由调用方注入（Redis、内存均可）。
 // 未注入时每次请求都打到上游。
 //
+// Redis 实现是独立模块 [github.com/KanoCifer/qwx/rediscache]，依赖 go-redis，
+// 核心包不引入它。需要时单独引入：
+//
+//	go get github.com/KanoCifer/qwx/rediscache
+//
 // 缓存时长默认由端点包决定，可用 [WithTTLPolicy] 按端点覆盖：
 //
 //	base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",

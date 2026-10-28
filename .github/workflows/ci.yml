@@ -42,3 +42,40 @@ jobs:
 
       - name: Test coverage
         run: go tool cover -func=coverage.out
+
+  rediscache:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.24", "1.25", "1.26"]
+    defaults:
+      run:
+        working-directory: rediscache
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Test coverage
+        run: go tool cover -func=coverage.out

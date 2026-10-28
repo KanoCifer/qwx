@@ -14,7 +14,7 @@ Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，�
   空气质量、预警、海洋潮汐、生活指数、分钟级降水预报
 - **按资源族分包**：一个包 = 一个上游资源族，字段形态与缓存键不互相污染
 - **两种认证**：JWT（Ed25519 签名，官方推荐）与 API KEY
-- **零依赖**：只用标准库，`go.mod` 没有 `require`
+- **零依赖**：核心包只用标准库，`go.mod` 没有 `require`
 - **缓存可插拔**：定义 `Cache` 接口，Redis / 内存 / 自定义都行
 - **错误可分类**：用 `errors.Is` 判断错误类别，不用解析字符串
 - **并发安全**：`Client` 无状态，可直接共享
@@ -25,7 +25,13 @@ Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，�
 go get github.com/KanoCifer/qwx
 ```
 
-要求 Go 1.22 及以上。
+要求 Go 1.24 及以上。
+
+需要 Redis 缓存时，额外引入独立的缓存模块（它依赖 go-redis，核心包不受影响）：
+
+```bash
+go get github.com/KanoCifer/qwx/rediscache
+```
 
 ## 快速开始
 
@@ -432,6 +438,30 @@ import "github.com/KanoCifer/qwx"
 base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(qwx.NewMemoryCache()))
 ```
 
+用 Redis 就引入 `rediscache` 模块，它实现了 `qwx.Cache`：
+
+```go
+import (
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/rediscache"
+)
+
+cache, err := rediscache.New(rediscache.Options{
+	Addr: "127.0.0.1:6379",
+	// Password: "...",  需要认证时填
+	// KeyPrefix: "myapp:",  多个应用共用一个 Redis 实例时隔离键
+})
+if err != nil {
+	return err
+}
+defer cache.Close()
+
+base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithCache(cache))
+```
+
+`rediscache` 支持 TLS（`TLSConfig`）、ACL 用户名（`Username`）、指定库（`DB`）与
+连接超时。构造时不会连 Redis，用 `cache.Ping(ctx)` 做启动自检。
+
 缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），
 TTL 按端点的数据更新节奏设定。缓存键不含 API Host，一个 Cache 实例不要跨账号共用。
 
@@ -588,9 +618,13 @@ w := weather.New(fakeDoer{})
 | `qwx/v7/indices` | 旧一代生活指数 `/v7/indices/*` |
 | `qwx/v7/minutely` | 旧一代分钟级降水 `/v7/minutely/*` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
+| `qwx/rediscache` | Redis 缓存实现（独立模块，依赖 go-redis） |
 
 一个包 = 一个上游资源族。`geo` 是唯一的例外：它的四个检索端点共享同一个地点
 类型，拆开会让该类型失去归属。
+
+`rediscache` 是独立的 Go 模块（自带 `go.mod`），不是上表的子包 —— 它不提供
+接口，只提供缓存实现，依赖 go-redis 所以不并入核心模块。
 
 `Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、
 `/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
@@ -629,6 +663,17 @@ LocationID 要先用 `geo` 包的 `LookupCity` 换成坐标。
 返回 400 `No Such Location`：内陆城市（如北京）查 TSTA（潮汐站）与 CSTA
 （观测站）都会 400，沿海城市（如舟山）才查得到。调用方要按错误处理，
 不能假设「查不到就是空」。
+
+**Redis 缓存是独立模块，不是核心包的一部分。** `rediscache` 自带 `go.mod`
+依赖 go-redis，核心包保持零依赖。引入方式：
+
+```bash
+go get github.com/KanoCifer/qwx/rediscache
+```
+
+它的构造函数不连 Redis，地址写错要靠 `cache.Ping(ctx)` 才暴露。`Set` 的 ttl
+小于等于 0 会返回 `qwx.ErrInvalidParameter` 且不写入 —— 不带过期时间的缓存
+会一直是旧数据。
 
 ## 官方文档
 
