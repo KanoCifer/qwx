@@ -1,7 +1,6 @@
 package alert
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/KanoCifer/qwx"
@@ -28,25 +27,11 @@ type Options struct {
 	LocalTime bool
 }
 
-// params 转换成查询参数。
-func (o Options) params() url.Values {
-	q := url.Values{}
-	if o.Lang != "" {
-		q.Set("lang", o.Lang)
-	}
-	if o.LocalTime {
-		q.Set("localTime", "true")
-	}
-	return q
-}
-
-// cacheSuffix 是查询参数对缓存键的影响部分。
-func (o Options) cacheSuffix() string {
-	suffix := cachekey.Lang(o.Lang)
-	if o.LocalTime {
-		suffix += ":localTime=1"
-	}
-	return suffix
+// params 是影响结果的查询参数。
+//
+// 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
+func (o Options) params() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang, LocalTime: o.LocalTime}
 }
 
 // Alert 是一条预警。

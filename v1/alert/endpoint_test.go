@@ -30,3 +30,19 @@ func TestCurrentReportsEndpointAndTTL(t *testing.T) {
 		t.Errorf("ttl = %v, want 5m", req.TTL)
 	}
 }
+
+// TestCacheKeysAreFrozen 缓存键字面量在已发布版本里定死。
+//
+// 改了会让已写入的缓存条目全部失效。
+func TestCacheKeysAreFrozen(t *testing.T) {
+	d := &testutil.RecordingDoer{}
+	c := alert.New(d)
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	if _, err := c.Current(context.Background(), loc, alert.Options{Lang: "zh", LocalTime: true}); err != nil {
+		t.Fatalf("Current: %v", err)
+	}
+	if want := "qwx:alert:v1:39.92,116.41:lang=zh:localTime=1"; d.Last(t).CacheKey != want {
+		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
+	}
+}

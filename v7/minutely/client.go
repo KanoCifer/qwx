@@ -9,7 +9,6 @@ package minutely
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
@@ -51,11 +50,9 @@ func (c *Client) Minutely(ctx context.Context, loc qwx.Location, lang string) (*
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: minutely forecast requires coordinates", qwx.ErrInvalidLocation)
 	}
-	q := url.Values{}
+	p := cachekey.Params{Lang: lang}
+	q := p.Query()
 	q.Set("location", loc.Query())
-	if lang != "" {
-		q.Set("lang", lang)
-	}
 
 	var out Result
 	err := c.base.Do(ctx, qwx.Request{
@@ -63,11 +60,19 @@ func (c *Client) Minutely(ctx context.Context, loc qwx.Location, lang string) (*
 		Path:     "/v7/minutely/5m",
 		Query:    q,
 		Endpoint: Endpoint,
-		CacheKey: "qwx:minutely:" + loc.Query() + cachekey.Lang(lang),
+		CacheKey: minutelyCacheKey(loc, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// minutelyCacheKey 分钟级降水的缓存键。
+func minutelyCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyMinutely).
+		Path(loc.Query()).
+		Params(p).
+		String()
 }

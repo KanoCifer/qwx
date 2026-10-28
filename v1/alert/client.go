@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/KanoCifer/qwx"
-	"github.com/KanoCifer/qwx/internal/coord"
+	"github.com/KanoCifer/qwx/internal/cachekey"
 )
 
 // Client 是预警接口的调用入口。
@@ -40,17 +40,26 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
+	p := opts.params()
 	var out Result
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/weatheralert/v1/current/" + lat + "/" + lon,
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: Endpoint,
-		CacheKey: "qwx:alert:v1:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + opts.cacheSuffix(),
+		CacheKey: currentCacheKey(loc, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// currentCacheKey 预警实况的缓存键。
+func currentCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyAlert).
+		PathCoord(loc.Lat, loc.Lon).
+		Params(p).
+		String()
 }

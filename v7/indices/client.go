@@ -9,7 +9,6 @@ package indices
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 
 	"github.com/KanoCifer/qwx"
@@ -58,12 +57,10 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: indices requires coordinates", qwx.ErrInvalidLocation)
 	}
-	q := url.Values{}
+	p := cachekey.Params{Lang: lang}
+	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("type", strconv.Itoa(typ))
-	if lang != "" {
-		q.Set("lang", lang)
-	}
 
 	var out Result
 	err := c.base.Do(ctx, qwx.Request{
@@ -71,11 +68,23 @@ func (c *Client) Indices(ctx context.Context, loc qwx.Location, typ, days int, l
 		Path:     "/v7/indices/" + strconv.Itoa(days) + "d",
 		Query:    q,
 		Endpoint: Endpoint,
-		CacheKey: "qwx:indices:" + loc.Query() + ":t" + strconv.Itoa(typ) + ":d" + strconv.Itoa(days) + cachekey.Lang(lang),
+		CacheKey: indicesCacheKey(loc, typ, days, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// indicesCacheKey 生活指数的缓存键。
+//
+// 指数类型与天数都进键：type=0 与 type=1、days=1 与 days=3 是不同的数据。
+func indicesCacheKey(loc qwx.Location, typ, days int, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyIndices).
+		Path(loc.Query()).
+		Count("t", typ).
+		Count("d", days).
+		Params(p).
+		String()
 }

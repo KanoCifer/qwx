@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/KanoCifer/qwx"
-	"github.com/KanoCifer/qwx/internal/coord"
+	"github.com/KanoCifer/qwx/internal/cachekey"
 )
 
 // Client 是天气接口的调用入口。
@@ -45,13 +45,14 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
+	p := opts.params()
 	var out CurrentWeather
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/weather/v1/current/" + lat + "/" + lon,
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: EndpointCurrent,
-		CacheKey: c.currentCacheKey(loc, opts),
+		CacheKey: currentCacheKey(loc, p),
 		TTL:      currentCacheTTL,
 	}, &out)
 	if err != nil {
@@ -61,8 +62,12 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 }
 
 // currentCacheKey 实时天气的缓存键。
-func (c *Client) currentCacheKey(loc qwx.Location, opts Options) string {
-	return "qwx:v1:current:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + opts.cacheSuffix()
+func currentCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyWeather).
+		Path("current").
+		PathCoord(loc.Lat, loc.Lon).
+		Params(p).
+		String()
 }
 
 // Hourly 查询逐小时预报。
@@ -82,7 +87,8 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts O
 	if err != nil {
 		return nil, err
 	}
-	q := opts.params()
+	p := opts.params()
+	q := p.Query()
 	q.Set("hours", strconv.Itoa(hours))
 
 	var out HourlyForecast
@@ -91,7 +97,7 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts O
 		Path:     "/weather/v1/hourly/" + lat + "/" + lon,
 		Query:    q,
 		Endpoint: EndpointHourly,
-		CacheKey: c.hourlyCacheKey(loc, hours, opts),
+		CacheKey: hourlyCacheKey(loc, hours, p),
 		TTL:      forecastCacheTTL,
 	}, &out)
 	if err != nil {
@@ -103,9 +109,13 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts O
 // hourlyCacheKey 逐小时预报的缓存键。
 //
 // 预报小时数进键：hours=24 与 hours=48 是两份不同的数据，共键会串。
-func (c *Client) hourlyCacheKey(loc qwx.Location, hours int, opts Options) string {
-	return "qwx:v1:hourly:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) +
-		":h" + strconv.Itoa(hours) + opts.cacheSuffix()
+func hourlyCacheKey(loc qwx.Location, hours int, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyWeather).
+		Path("hourly").
+		PathCoord(loc.Lat, loc.Lon).
+		Count("h", hours).
+		Params(p).
+		String()
 }
 
 // Daily 查询逐日预报。
@@ -125,7 +135,8 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Opt
 	if err != nil {
 		return nil, err
 	}
-	q := opts.params()
+	p := opts.params()
+	q := p.Query()
 	q.Set("days", strconv.Itoa(days))
 
 	var out DailyForecast
@@ -134,7 +145,7 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Opt
 		Path:     "/weather/v1/daily/" + lat + "/" + lon,
 		Query:    q,
 		Endpoint: EndpointDaily,
-		CacheKey: c.dailyCacheKey(loc, days, opts),
+		CacheKey: dailyCacheKey(loc, days, p),
 		TTL:      forecastCacheTTL,
 	}, &out)
 	if err != nil {
@@ -144,7 +155,11 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Opt
 }
 
 // dailyCacheKey 逐日预报的缓存键。
-func (c *Client) dailyCacheKey(loc qwx.Location, days int, opts Options) string {
-	return "qwx:v1:daily:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) +
-		":d" + strconv.Itoa(days) + opts.cacheSuffix()
+func dailyCacheKey(loc qwx.Location, days int, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyWeather).
+		Path("daily").
+		PathCoord(loc.Lat, loc.Lon).
+		Count("d", days).
+		Params(p).
+		String()
 }

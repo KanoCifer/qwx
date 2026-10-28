@@ -1,10 +1,10 @@
 package airquality
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/cachekey"
 	"github.com/KanoCifer/qwx/v1"
 )
 
@@ -34,13 +34,11 @@ type Options struct {
 	Lang string
 }
 
-// params 转换成查询参数。
-func (o Options) params() url.Values {
-	q := url.Values{}
-	if o.Lang != "" {
-		q.Set("lang", o.Lang)
-	}
-	return q
+// params 是影响结果的查询参数。
+//
+// 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
+func (o Options) params() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang}
 }
 
 // Index 是一个 AQI 指数条目。

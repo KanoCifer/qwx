@@ -6,8 +6,6 @@ package geo
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strconv"
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
@@ -41,7 +39,8 @@ func New(base qwx.Doer) *Client {
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointCity] 覆盖。
 func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options) (*CityResult, error) {
-	q := opts.params()
+	p := opts.params()
+	q := p.Query()
 	q.Set("location", loc.Query())
 
 	var out CityResult
@@ -50,13 +49,21 @@ func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options)
 		Path:     "/geo/v2/city/lookup",
 		Query:    q,
 		Endpoint: EndpointCity,
-		CacheKey: "qwx:geo:city:" + loc.Query() + opts.cacheSuffix(),
+		CacheKey: cityCacheKey(loc, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// cityCacheKey 城市检索的缓存键。
+func cityCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyGeo).
+		Path("city", loc.Query()).
+		Params(p).
+		String()
 }
 
 // LookupPOI 检索 POI。
@@ -79,7 +86,8 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 	default:
 		return nil, fmt.Errorf("%w: unsupported POI type %q", qwx.ErrInvalidParameter, typ)
 	}
-	q := opts.params()
+	p := opts.params()
+	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("type", string(typ))
 
@@ -89,13 +97,21 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 		Path:     "/geo/v2/poi/lookup",
 		Query:    q,
 		Endpoint: EndpointPOI,
-		CacheKey: "qwx:geo:poi:" + string(typ) + ":" + loc.Query() + opts.cacheSuffix(),
+		CacheKey: poiCacheKey(typ, loc, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// poiCacheKey POI 检索的缓存键。
+func poiCacheKey(typ POIType, loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyGeo).
+		Path("poi", string(typ), loc.Query()).
+		Params(p).
+		String()
 }
 
 // POIRange 检索指定坐标附近的 POI。
@@ -107,7 +123,8 @@ func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, o
 // 与 [Client.LookupPOI] 一样，上游在该类型附近无数据时回 400
 // "No Such Location"，不是空列表。
 //
-// 缓存键：`qwx:geo:poirange:<type>:<location>:r<radius>` 加查询参数后缀。
+// 缓存键：`qwx:geo:poirange:<type>:<location>` 加查询参数后缀
+// （含半径）。
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointPOIRange] 覆盖。
 func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, opts POIRangeOptions) (*RangeResult, error) {
@@ -119,24 +136,10 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: POI range requires coordinates", qwx.ErrInvalidLocation)
 	}
-	q := url.Values{}
-	if opts.Lang != "" {
-		q.Set("lang", opts.Lang)
-	}
-	if opts.Number > 0 {
-		q.Set("number", strconv.Itoa(opts.Number))
-	}
-	if opts.Radius > 0 {
-		q.Set("radius", strconv.Itoa(opts.Radius))
-	}
+	p := opts.params()
+	q := p.Query()
 	q.Set("location", loc.Query())
 	q.Set("type", string(typ))
-
-	suffix := cachekey.Lang(opts.Lang)
-	if opts.Number > 0 {
-		suffix += ":n=" + strconv.Itoa(opts.Number)
-	}
-	suffix += ":r=" + strconv.Itoa(opts.Radius)
 
 	var out RangeResult
 	err := c.base.Do(ctx, qwx.Request{
@@ -144,13 +147,21 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 		Path:     "/geo/v2/poi/range",
 		Query:    q,
 		Endpoint: EndpointPOIRange,
-		CacheKey: "qwx:geo:poirange:" + string(typ) + ":" + loc.Query() + suffix,
+		CacheKey: poiRangeCacheKey(typ, loc, p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// poiRangeCacheKey POI 范围检索的缓存键。
+func poiRangeCacheKey(typ POIType, loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyGeo).
+		Path("poirange", string(typ), loc.Query()).
+		Params(p).
+		String()
 }
 
 // TopCities 检索热门城市。
@@ -161,17 +172,26 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointTopCities] 覆盖。
 func (c *Client) TopCities(ctx context.Context, opts Options) (*TopCityResult, error) {
+	p := opts.params()
 	var out TopCityResult
 	err := c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/geo/v2/city/top",
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: EndpointTopCities,
-		CacheKey: "qwx:geo:topcity" + opts.cacheSuffix(),
+		CacheKey: topCityCacheKey(p),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// topCityCacheKey 热门城市检索的缓存键。
+func topCityCacheKey(p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyGeo).
+		Path("topcity").
+		Params(p).
+		String()
 }

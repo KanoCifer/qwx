@@ -104,3 +104,40 @@ func TestStationReportsEndpointAndTTL(t *testing.T) {
 		t.Errorf("ttl = %v, want 30m", req.TTL)
 	}
 }
+
+// TestCacheKeysAreFrozen 缓存键字面量在已发布版本里定死。
+//
+// 改了会让已写入的缓存条目全部失效。
+func TestCacheKeysAreFrozen(t *testing.T) {
+	d := &testutil.RecordingDoer{}
+	c := airquality.New(d)
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	if _, err := c.Current(context.Background(), loc, airquality.Options{Lang: "zh"}); err != nil {
+		t.Fatalf("Current: %v", err)
+	}
+	if want := "qwx:aq:v1:current:39.92,116.41:lang=zh"; d.Last(t).CacheKey != want {
+		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
+	}
+
+	if _, err := c.Daily(context.Background(), loc, airquality.Options{}); err != nil {
+		t.Fatalf("Daily: %v", err)
+	}
+	if want := "qwx:aq:v1:daily:39.92,116.41"; d.Last(t).CacheKey != want {
+		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
+	}
+
+	if _, err := c.Hourly(context.Background(), loc, airquality.Options{}); err != nil {
+		t.Fatalf("Hourly: %v", err)
+	}
+	if want := "qwx:aq:v1:hourly:39.92,116.41"; d.Last(t).CacheKey != want {
+		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
+	}
+
+	if _, err := c.Station(context.Background(), "P51762", airquality.Options{Lang: "zh"}); err != nil {
+		t.Fatalf("Station: %v", err)
+	}
+	if want := "qwx:aq:v1:station:P51762:lang=zh"; d.Last(t).CacheKey != want {
+		t.Errorf("cacheKey = %q, want %q", d.Last(t).CacheKey, want)
+	}
+}

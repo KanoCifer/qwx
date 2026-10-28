@@ -9,7 +9,6 @@ import (
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/internal/cachekey"
-	"github.com/KanoCifer/qwx/internal/coord"
 )
 
 // Client 是空气质量接口的调用入口。
@@ -41,19 +40,29 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
+	p := opts.params()
 	var out Current
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/airquality/v1/current/" + lat + "/" + lon,
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: EndpointCurrent,
-		CacheKey: "qwx:aq:v1:current:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + cachekey.Lang(opts.Lang),
+		CacheKey: currentCacheKey(loc, p),
 		TTL:      currentCacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// currentCacheKey 实时空气质量的缓存键。
+func currentCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyAirQuality).
+		Path("current").
+		PathCoord(loc.Lat, loc.Lon).
+		Params(p).
+		String()
 }
 
 // Daily 查询逐日空气质量预报。
@@ -68,19 +77,29 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, opts Options) (*Da
 	if err != nil {
 		return nil, err
 	}
+	p := opts.params()
 	var out DailyForecast
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/airquality/v1/daily/" + lat + "/" + lon,
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: EndpointDaily,
-		CacheKey: "qwx:aq:v1:daily:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + cachekey.Lang(opts.Lang),
+		CacheKey: dailyCacheKey(loc, p),
 		TTL:      forecastCacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// dailyCacheKey 逐日空气质量预报的缓存键。
+func dailyCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyAirQuality).
+		Path("daily").
+		PathCoord(loc.Lat, loc.Lon).
+		Params(p).
+		String()
 }
 
 // Hourly 查询逐小时空气质量预报。
@@ -95,19 +114,29 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, opts Options) (*H
 	if err != nil {
 		return nil, err
 	}
+	p := opts.params()
 	var out HourlyForecast
 	err = c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/airquality/v1/hourly/" + lat + "/" + lon,
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: EndpointHourly,
-		CacheKey: "qwx:aq:v1:hourly:" + coord.Format(loc.Lat) + "," + coord.Format(loc.Lon) + cachekey.Lang(opts.Lang),
+		CacheKey: hourlyCacheKey(loc, p),
 		TTL:      forecastCacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// hourlyCacheKey 逐小时空气质量预报的缓存键。
+func hourlyCacheKey(loc qwx.Location, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyAirQuality).
+		Path("hourly").
+		PathCoord(loc.Lat, loc.Lon).
+		Params(p).
+		String()
 }
 
 // Station 查询单个监测站的污染物数据。
@@ -123,17 +152,26 @@ func (c *Client) Station(ctx context.Context, stationID string, opts Options) (*
 	if stationID == "" {
 		return nil, fmt.Errorf("%w: empty station ID", qwx.ErrInvalidParameter)
 	}
+	p := opts.params()
 	var out StationData
 	err := c.base.Do(ctx, qwx.Request{
 		Method:   "GET",
 		Path:     "/airquality/v1/stations/" + stationID,
-		Query:    opts.params(),
+		Query:    p.Query(),
 		Endpoint: EndpointStation,
-		CacheKey: "qwx:aq:v1:station:" + stationID + cachekey.Lang(opts.Lang),
+		CacheKey: stationCacheKey(stationID, p),
 		TTL:      currentCacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// stationCacheKey 单个监测站的缓存键。
+func stationCacheKey(stationID string, p cachekey.Params) string {
+	return cachekey.New(cachekey.FamilyAirQuality).
+		Path("station", stationID).
+		Params(p).
+		String()
 }

@@ -1,8 +1,6 @@
 package geo
 
 import (
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -33,25 +31,11 @@ type Options struct {
 	Number int
 }
 
-// params 转换成查询参数。
-func (o Options) params() url.Values {
-	q := url.Values{}
-	if o.Lang != "" {
-		q.Set("lang", o.Lang)
-	}
-	if o.Number > 0 {
-		q.Set("number", strconv.Itoa(o.Number))
-	}
-	return q
-}
-
-// cacheSuffix 是 Options 对缓存键的影响部分。
-func (o Options) cacheSuffix() string {
-	suffix := cachekey.Lang(o.Lang)
-	if o.Number > 0 {
-		suffix += ":n=" + strconv.Itoa(o.Number)
-	}
-	return suffix
+// params 是影响结果的查询参数。
+//
+// 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
+func (o Options) params() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang, Number: o.Number}
 }
 
 // POIRangeOptions 是 POI 范围检索的可选参数。
@@ -62,6 +46,14 @@ type POIRangeOptions struct {
 	Number int
 	// Radius 是搜索半径（公里）。0 用上游默认（5）。
 	Radius int
+}
+
+// params 是影响结果的查询参数。
+//
+// 半径用指针传：半径为 0 与"没有半径参数"在键里要分开，而请求里都不
+// 发 radius（上游按默认值处理）。
+func (o POIRangeOptions) params() cachekey.Params {
+	return cachekey.Params{Lang: o.Lang, Number: o.Number, Radius: &o.Radius}
 }
 
 // POIType 是 POI 检索的类型。
