@@ -1,25 +1,3 @@
-// Package qwx 是和风天气（QWeather）开发服务的 Go 客户端。
-//
-// 它覆盖官方文档中的核心接口族：GeoAPI 城市/POI 检索、天气预报（新一代
-// /weather/v1/*）、空气质量、预警、海洋潮汐、生活指数与分钟级降水预报。
-//
-// # 认证
-//
-// 官方支持两种认证方式，本包都支持，但**不要同时使用**：
-//
-//   - JWT（Ed25519 签名，推荐）：见 [NewJWTAuth]。需要控制台生成的
-//     Ed25519 私钥，以及凭据的 Key ID、Project ID、Developer ID。
-//   - API KEY：见 [NewAPIKeyAuth]。官方已公告从 2027 年 1 月 1 日起
-//     限制用 API KEY 认证的每日请求量，新项目建议直接用 JWT。
-//
-// # 缓存
-//
-// 本包不内置缓存实现，而是定义 [Cache] 接口由调用方注入（Redis、内存均可）。
-// 未注入时每次请求都打到上游。
-//
-// # 并发
-//
-// [Client] 无状态，可并发共享。所有方法都接受 [context.Context]。
 package qwx
 
 import (
@@ -28,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -42,9 +19,12 @@ const DefaultBaseURL = "https://devapi.qweather.com"
 // DefaultTimeout 是 HTTP 请求的默认超时。
 const DefaultTimeout = 30 * time.Second
 
-// Client 是和风天气 API 的客户端。
+// Client 是和风天气 API 的基础客户端。
 //
-// 无状态，可并发共享。零值不可用，请用 [NewClient] 构造。
+// 负责认证、请求发送、缓存读写与错误归类，不含具体接口。无状态，可并发
+// 共享。零值不可用，请用 [NewClient] 构造。
+//
+// 接口族在各自的子包里，用同一个 Client 构造服务客户端。
 type Client struct {
 	baseURL string
 	http    *http.Client
@@ -86,7 +66,7 @@ func WithAuth(a Auth) Option {
 
 // WithCache 注入缓存实现。
 //
-// 传入 nil 等同于不缓存。缓存的键由本包生成（见各端点方法的 CacheKey 说明），
+// 传入 nil 等同于不缓存。缓存的键由端点包生成（见各端点方法的 CacheKey 说明），
 // TTL 由端点语义决定，调用方无需关心。
 func WithCache(cache Cache) Option {
 	return func(c *Client) { c.cache = cache }
@@ -126,23 +106,17 @@ func NewClient(auth Auth, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// request 是一次上游请求的描述。
-type request struct {
-	method string
-	path   string
-	query  url.Values
-	body   io.Reader
-}
-
-// do 发送请求并解析响应。
+// Do 发送一次上游请求并把响应解析到 out。
 //
-// 命中缓存时直接返回缓存内容，不打上游。upstream 返回非 2xx 时，
-// 按状态码归类到具体的 sentinel error，并尽可能解析出上游的错误细节。
-func (c *Client) do(ctx context.Context, req request, cacheKey string, ttl time.Duration, out any) error {
-	if c.cache != nil && cacheKey != "" && ttl > 0 {
-		hit, ok, err := c.cache.Get(ctx, cacheKey)
+// 命中缓存时直接返回缓存内容，不打上游。上游返回非 2xx 时，按状态码归类
+// 到具体的 sentinel error，并尽可能解析出上游的错误细节。
+//
+// out 为 nil 时只取原始响应体。
+func (c *Client) Do(ctx context.Context, req Request, out any) error {
+	if c.cache != nil && req.CacheKey != "" && req.TTL > 0 {
+		hit, ok, err := c.cache.Get(ctx, req.CacheKey)
 		if err == nil && ok {
-			return json.Unmarshal(hit, out)
+			return decode(hit, out)
 		}
 		// 缓存读失败不该让业务请求失败，降级为直接请求上游。
 	}
@@ -152,11 +126,16 @@ func (c *Client) do(ctx context.Context, req request, cacheKey string, ttl time.
 		return err
 	}
 
-	if c.cache != nil && cacheKey != "" && ttl > 0 {
+	if c.cache != nil && req.CacheKey != "" && req.TTL > 0 {
 		// 缓存写失败同样不该让业务请求失败，响应已经拿到了。
-		_ = c.cache.Set(ctx, cacheKey, payload, ttl)
+		_ = c.cache.Set(ctx, req.CacheKey, payload, req.TTL)
 	}
 
+	return decode(payload, out)
+}
+
+// decode 把响应体解析到 out。
+func decode(payload []byte, out any) error {
 	if out == nil {
 		return nil
 	}
@@ -167,20 +146,19 @@ func (c *Client) do(ctx context.Context, req request, cacheKey string, ttl time.
 }
 
 // fetch 发起一次真实的上游请求，返回原始响应体。
-func (c *Client) fetch(ctx context.Context, req request) ([]byte, error) {
-	u := c.baseURL + req.path
-	if len(req.query) > 0 {
-		u += "?" + req.query.Encode()
+func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
+	u := c.baseURL + req.Path
+	if len(req.Query) > 0 {
+		u += "?" + req.Query.Encode()
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, req.method, u, req.body)
+	method := req.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, method, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%w: build request: %v", ErrInvalidConfig, err)
-	}
-	for k, vs := range req.query {
-		for _, v := range vs {
-			httpReq.Header.Add(k, v)
-		}
 	}
 	if err := c.auth.Apply(httpReq); err != nil {
 		return nil, err

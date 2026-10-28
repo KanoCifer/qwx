@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/KanoCifer/qwx/internal/coord"
 )
 
 // Location 表示一个查询位置。
@@ -26,11 +28,6 @@ type Location struct {
 	// Lon 是经度。
 	Lon float64
 }
-
-// 坐标对字符串里的最大小数位数。
-//
-// 官方文档写明"最多支持小数点后两位"，实测给更多小数上游也按 1km 网格取值。
-const maxCoordDecimals = 2
 
 // locationIDRe LocationID 的形态。
 //
@@ -107,7 +104,7 @@ func (l Location) IsZero() bool {
 func (l Location) Query() string {
 	switch {
 	case l.HasCoordinates():
-		return formatCoord(l.Lon) + "," + formatCoord(l.Lat)
+		return coord.Format(l.Lon) + "," + coord.Format(l.Lat)
 	case l.ID != "":
 		return l.ID
 	default:
@@ -120,7 +117,7 @@ func (l Location) Coordinates() (lat, lon float64, err error) {
 	if !l.HasCoordinates() {
 		return 0, 0, fmt.Errorf("%w: location has no coordinates", ErrInvalidLocation)
 	}
-	return roundCoord(l.Lat), roundCoord(l.Lon), nil
+	return coord.Round(l.Lat), coord.Round(l.Lon), nil
 }
 
 // Path 返回新一代接口路径里的坐标分量：**纬度在前、经度在后**。
@@ -136,23 +133,5 @@ func (l Location) Path() (latPart, lonPart string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	return formatCoord(lat), formatCoord(lon), nil
-}
-
-// formatCoord 格式化坐标分量（-0 归一成 0，避免 "-0.00" 这种怪值进缓存键）。
-func formatCoord(v float64) string {
-	s := strconv.FormatFloat(v, 'f', maxCoordDecimals, 64)
-	if s == "-0.00" {
-		return "0.00"
-	}
-	return s
-}
-
-// roundCoord 把坐标规整到两位小数。
-func roundCoord(v float64) float64 {
-	f, err := strconv.ParseFloat(formatCoord(v), 64)
-	if err != nil {
-		return v
-	}
-	return f
+	return coord.Format(lat), coord.Format(lon), nil
 }

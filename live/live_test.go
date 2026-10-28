@@ -9,22 +9,29 @@
 //	QWEATHER_KEY_ID=YOUR_KEY_ID \
 //	QWEATHER_PROJECT_ID=YOUR_PROJECT_ID \
 //	go test -tags live -v -run TestLive ./...
-package qwx
+package live
 
 import (
 	"context"
 	"os"
 	"testing"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/geo"
+	"github.com/KanoCifer/qwx/v1/airquality"
+	"github.com/KanoCifer/qwx/v1/alert"
+	"github.com/KanoCifer/qwx/v1/weather"
+	"github.com/KanoCifer/qwx/v7"
 )
 
-func liveClient(t *testing.T) *Client {
+func liveClient(t *testing.T) *qwx.Client {
 	t.Helper()
 	base := os.Getenv("QWEATHER_BASE_URL")
 	priv := os.Getenv("QWEATHER_JWT_PRIVATE_KEY")
 	if base == "" || priv == "" {
 		t.Skip("未设置 QWEATHER_BASE_URL / QWEATHER_JWT_PRIVATE_KEY，跳过")
 	}
-	auth, err := NewJWTAuth(JWTConfig{
+	auth, err := qwx.NewJWTAuth(qwx.JWTConfig{
 		PrivateKeyPEM: priv,
 		KeyID:         os.Getenv("QWEATHER_KEY_ID"),
 		ProjectID:     os.Getenv("QWEATHER_PROJECT_ID"),
@@ -32,7 +39,7 @@ func liveClient(t *testing.T) *Client {
 	if err != nil {
 		t.Fatalf("NewJWTAuth: %v", err)
 	}
-	c, err := NewClient(auth, WithBaseURL(base))
+	c, err := qwx.NewClient(auth, qwx.WithBaseURL(base))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -42,10 +49,16 @@ func liveClient(t *testing.T) *Client {
 func TestLive(t *testing.T) {
 	c := liveClient(t)
 	ctx := context.Background()
-	loc := Location{Lat: 39.92, Lon: 116.41}
+	loc := qwx.Location{Lat: 39.92, Lon: 116.41}
+
+	w := weather.New(c)
+	aq := airquality.New(c)
+	al := alert.New(c)
+	old := v7.New(c)
+	g := geo.New(c)
 
 	t.Run("Current", func(t *testing.T) {
-		got, err := c.Current(ctx, loc, WeatherOptions{Lang: "zh", LocalTime: true})
+		got, err := w.Current(ctx, loc, weather.Options{Lang: "zh", LocalTime: true})
 		if err != nil {
 			t.Fatalf("Current: %v", err)
 		}
@@ -53,7 +66,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Hourly", func(t *testing.T) {
-		got, err := c.Hourly(ctx, loc, 24, WeatherOptions{Lang: "zh", LocalTime: true})
+		got, err := w.Hourly(ctx, loc, 24, weather.Options{Lang: "zh", LocalTime: true})
 		if err != nil {
 			t.Fatalf("Hourly: %v", err)
 		}
@@ -61,7 +74,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Daily", func(t *testing.T) {
-		got, err := c.Daily(ctx, loc, 3, WeatherOptions{Lang: "zh", LocalTime: true})
+		got, err := w.Daily(ctx, loc, 3, weather.Options{Lang: "zh", LocalTime: true})
 		if err != nil {
 			t.Fatalf("Daily: %v", err)
 		}
@@ -69,7 +82,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("LookupCity", func(t *testing.T) {
-		got, err := c.LookupCity(ctx, Location{ID: "101010100"}, GeoOptions{Lang: "zh"})
+		got, err := g.LookupCity(ctx, qwx.Location{ID: "101010100"}, geo.Options{Lang: "zh"})
 		if err != nil {
 			t.Fatalf("LookupCity: %v", err)
 		}
@@ -79,7 +92,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Indices", func(t *testing.T) {
-		got, err := c.Indices(ctx, loc, IndicesTypeFishing, 1, "zh")
+		got, err := old.Indices(ctx, loc, v7.IndicesTypeFishing, 1, "zh")
 		if err != nil {
 			t.Fatalf("Indices: %v", err)
 		}
@@ -89,7 +102,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Minutely", func(t *testing.T) {
-		got, err := c.Minutely(ctx, loc, "zh")
+		got, err := old.Minutely(ctx, loc, "zh")
 		if err != nil {
 			t.Fatalf("Minutely: %v", err)
 		}
@@ -97,7 +110,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("AirQuality", func(t *testing.T) {
-		got, err := c.AirQuality(ctx, loc, AirQualityOptions{Lang: "zh"})
+		got, err := aq.Current(ctx, loc, airquality.Options{Lang: "zh"})
 		if err != nil {
 			t.Fatalf("AirQuality: %v", err)
 		}
@@ -107,7 +120,7 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("Alerts", func(t *testing.T) {
-		got, err := c.Alerts(ctx, loc, WeatherOptions{Lang: "zh", LocalTime: true})
+		got, err := al.Current(ctx, loc, alert.Options{Lang: "zh", LocalTime: true})
 		if err != nil {
 			t.Fatalf("Alerts: %v", err)
 		}

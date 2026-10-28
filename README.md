@@ -12,6 +12,7 @@ Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，�
 
 - **核心接口全覆盖**：GeoAPI 城市/POI 检索、天气预报（新一代 `/weather/v1/*`）、
   空气质量、预警、海洋潮汐、生活指数、分钟级降水预报
+- **按代分包**：新一代、旧一代、GeoAPI 各自成包，字段形态与缓存键不互相污染
 - **两种认证**：JWT（Ed25519 签名，推荐）与 API KEY
 - **零依赖**：只用标准库，`go.mod` 没有 `require`
 - **缓存可插拔**：定义 `Cache` 接口，Redis / 内存 / 自定义都行
@@ -24,6 +25,17 @@ Go SDK，覆盖文档中的核心接口族，返回类型化的 Go 结构体，�
 go get github.com/KanoCifer/qwx
 ```
 
+## 包结构
+
+| 包 | 覆盖的上游接口 |
+| --- | --- |
+| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、新一代共用基础类型 |
+| `qwx/v1/weather` | 新一代天气 `/weather/v1/*` |
+| `qwx/v1/airquality` | 新一代空气质量 `/airquality/v1/*` |
+| `qwx/v1/alert` | 新一代预警 `/weatheralert/v1/*` |
+| `qwx/v7` | 旧一代 `/v7/*` |
+| `qwx/geo` | GeoAPI `/geo/v2/*` |
+
 ## 快速开始
 
 ### 用 API KEY
@@ -34,7 +46,7 @@ if err != nil {
     log.Fatal(err)
 }
 
-client, err := qwx.NewClient(auth)
+base, err := qwx.NewClient(auth)
 if err != nil {
     log.Fatal(err)
 }
@@ -44,7 +56,10 @@ if err != nil {
     log.Fatal(err)
 }
 
-current, err := client.Current(ctx, loc, qwx.WeatherOptions{
+// 各接口族用基础客户端构造自己的服务客户端。
+w := weather.New(base)
+
+current, err := w.Current(ctx, loc, weather.Options{
     Lang:      "zh",
     LocalTime: true, // 不传会拿到 UTC，时间差 8 小时
 })
@@ -85,13 +100,13 @@ JWT 有效期 15 分钟，SDK 会在过期前自动重签，调用方不用管�
 SDK 不内置缓存实现，注入你已有的：
 
 ```go
-client, err := qwx.NewClient(auth, qwx.WithCache(myRedisCache))
+base, err := qwx.NewClient(auth, qwx.WithCache(myRedisCache))
 ```
 
 也可以先用内置的内存缓存开发调试：
 
 ```go
-client, err := qwx.NewClient(auth, qwx.WithCache(qwx.NewMemoryCache()))
+base, err := qwx.NewClient(auth, qwx.WithCache(qwx.NewMemoryCache()))
 ```
 
 缓存键由 SDK 生成（两代接口刻意不共键，避免旧缓存喂给新解析器），
@@ -99,24 +114,24 @@ TTL 按端点的数据更新节奏设定。
 
 ## 支持的接口
 
-| 方法 | 上游接口 |
-| --- | --- |
-| `LookupCity` | `GET /geo/v2/city/lookup` |
-| `LookupPOI` | `GET /geo/v2/poi/lookup` |
-| `POIRange` | `GET /geo/v2/poi/range` |
-| `TopCities` | `GET /geo/v2/city/top` |
-| `Current` | `GET /weather/v1/current/{lat}/{lon}` |
-| `Hourly` | `GET /weather/v1/hourly/{lat}/{lon}` |
-| `Daily` | `GET /weather/v1/daily/{lat}/{lon}` |
-| `AirQuality` | `GET /airquality/v1/current/{lat}/{lon}` |
-| `AirQualityDailyForecast` | `GET /airquality/v1/daily/{lat}/{lon}` |
-| `AirQualityHourlyForecast` | `GET /airquality/v1/hourly/{lat}/{lon}` |
-| `AirStation` | `GET /airquality/v1/stations/{locationId}` |
-| `Alerts` | `GET /weatheralert/v1/current/{lat}/{lon}` |
-| `Warnings` | `GET /v7/warning/now` |
-| `Tide` | `GET /v7/ocean/tide` |
-| `Indices` | `GET /v7/indices/{days}d` |
-| `Minutely` | `GET /v7/minutely/5m` |
+| 包 | 方法 | 上游接口 |
+| --- | --- | --- |
+| `geo` | `LookupCity` | `GET /geo/v2/city/lookup` |
+| `geo` | `LookupPOI` | `GET /geo/v2/poi/lookup` |
+| `geo` | `POIRange` | `GET /geo/v2/poi/range` |
+| `geo` | `TopCities` | `GET /geo/v2/city/top` |
+| `v1/weather` | `Current` | `GET /weather/v1/current/{lat}/{lon}` |
+| `v1/weather` | `Hourly` | `GET /weather/v1/hourly/{lat}/{lon}` |
+| `v1/weather` | `Daily` | `GET /weather/v1/daily/{lat}/{lon}` |
+| `v1/airquality` | `Current` | `GET /airquality/v1/current/{lat}/{lon}` |
+| `v1/airquality` | `Daily` | `GET /airquality/v1/daily/{lat}/{lon}` |
+| `v1/airquality` | `Hourly` | `GET /airquality/v1/hourly/{lat}/{lon}` |
+| `v1/airquality` | `Station` | `GET /airquality/v1/stations/{locationId}` |
+| `v1/alert` | `Current` | `GET /weatheralert/v1/current/{lat}/{lon}` |
+| `v7` | `Warnings` | `GET /v7/warning/now` |
+| `v7` | `Tide` | `GET /v7/ocean/tide` |
+| `v7` | `Indices` | `GET /v7/indices/{days}d` |
+| `v7` | `Minutely` | `GET /v7/minutely/5m` |
 
 `Tide`、`Indices`、`Minutely` 至今只有 v7 版本 —— 实测 `/weather/v1/indices/*`、
 `/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
@@ -128,7 +143,7 @@ TTL 按端点的数据更新节奏设定。
 不会静默返回别处。SDK 里 `Location.Path()` 给新一代用，`Location.Query()` 给旧的用。
 
 **新一代只认坐标。** `/weather/v1/current/101010100` → 404（body 为空）。
-LocationID 要先用 `LookupCity` 换成坐标。
+LocationID 要先用 `geo` 包的 `LookupCity` 换成坐标。
 
 **必须传 `localTime=true`。** 新一代默认给 UTC（`"2026-10-21T05:00Z"`），
 不传本地时间会整整差 8 小时。

@@ -1,0 +1,168 @@
+package qwx_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/testutil"
+)
+
+func TestDoDecodesResponse(t *testing.T) {
+	fs := testutil.NewFakeServer(t, `{"code":"200","locations":[]}`)
+	c := testutil.NewClient(t, fs)
+
+	var out struct {
+		Code      string `json:"code"`
+		Locations []any  `json:"locations"`
+	}
+	err := c.Do(context.Background(), qwx.Request{Path: "/geo/v2/city/lookup"}, &out)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if out.Code != "200" {
+		t.Errorf("code = %q, want 200", out.Code)
+	}
+	fs.AssertPath(t, "/geo/v2/city/lookup")
+}
+
+func TestDoCachesResponse(t *testing.T) {
+	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	c := testutil.NewClient(t, fs, qwx.WithCache(qwx.NewMemoryCache()))
+	req := qwx.Request{Path: "/geo/v2/city/top", CacheKey: "qwx:geo:topcity", TTL: time.Minute}
+
+	var out struct {
+		Code string `json:"code"`
+	}
+	for i := 0; i < 2; i++ {
+		if err := c.Do(context.Background(), req, &out); err != nil {
+			t.Fatalf("Do: %v", err)
+		}
+	}
+	if fs.Hits != 1 {
+		t.Errorf("hits = %d, want 1 (second call must hit cache)", fs.Hits)
+	}
+	// 命中缓存时也要能把内容解析出来。
+	if out.Code != "200" {
+		t.Errorf("code = %q, want 200", out.Code)
+	}
+}
+
+func TestDoCacheKeyIsolatesResults(t *testing.T) {
+	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	c := testutil.NewClient(t, fs, qwx.WithCache(qwx.NewMemoryCache()))
+
+	// 键不同是两份数据，不能互相命中。
+	if err := c.Do(context.Background(), qwx.Request{Path: "/x", CacheKey: "k1", TTL: time.Minute}, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if err := c.Do(context.Background(), qwx.Request{Path: "/x", CacheKey: "k2", TTL: time.Minute}, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if fs.Hits != 2 {
+		t.Errorf("hits = %d, want 2", fs.Hits)
+	}
+}
+
+func TestDoCacheFailureDegradesGracefully(t *testing.T) {
+	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	c := testutil.NewClient(t, fs, qwx.WithCache(failingCache{}))
+
+	// 缓存故障不应让请求失败。
+	if err := c.Do(context.Background(), qwx.Request{Path: "/x", CacheKey: "k", TTL: time.Minute}, nil); err != nil {
+		t.Fatalf("Do with broken cache: %v", err)
+	}
+	if fs.Hits != 1 {
+		t.Errorf("hits = %d, want 1", fs.Hits)
+	}
+}
+
+func TestDoUpstreamErrorClassification(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		body   string
+		want   error
+	}{
+		{"bad request", 400, `{"error":{"status":400,"title":"Invalid Parameters","invalidParams":["location"]}}`, qwx.ErrUpstreamRejected},
+		{"unauthorized", 401, `{"error":{"status":401,"title":"Unauthorized"}}`, qwx.ErrUnauthorized},
+		{"forbidden", 403, `{"error":{"status":403,"title":"Forbidden"}}`, qwx.ErrUnauthorized},
+		{"quota", 429, `{"error":{"status":429,"title":"Too Many Requests"}}`, qwx.ErrQuotaExceeded},
+		{"server error", 500, `{"error":{"status":500,"title":"Internal Server Error"}}`, qwx.ErrUpstreamUnavailable},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := testutil.NewFakeServer(t, tc.body)
+			fs.Handler = func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}
+			c := testutil.NewClient(t, fs)
+
+			err := c.Do(context.Background(), qwx.Request{Path: "/x"}, nil)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !errors.Is(err, tc.want) {
+				t.Errorf("error %v does not match %v", err, tc.want)
+			}
+
+			var ue *qwx.UpstreamError
+			if !errors.As(err, &ue) {
+				t.Fatalf("error is not *UpstreamError: %T", err)
+			}
+			if ue.StatusCode != tc.status {
+				t.Errorf("status = %d, want %d", ue.StatusCode, tc.status)
+			}
+			if ue.Title == "" {
+				t.Error("title should be parsed from upstream body")
+			}
+		})
+	}
+}
+
+func TestDoUpstreamErrorParsesInvalidParams(t *testing.T) {
+	body := `{"error":{"status":400,"title":"Invalid Parameters","invalidParams":["longitude","latitude"]}}`
+	fs := testutil.NewFakeServer(t, body)
+	fs.Handler = func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(body))
+	}
+	c := testutil.NewClient(t, fs)
+
+	err := c.Do(context.Background(), qwx.Request{Path: "/x"}, nil)
+	var ue *qwx.UpstreamError
+	if !errors.As(err, &ue) {
+		t.Fatalf("error is not *UpstreamError: %T", err)
+	}
+	if len(ue.InvalidParams) != 2 {
+		t.Errorf("invalidParams = %v, want 2 entries", ue.InvalidParams)
+	}
+}
+
+func TestDoRejectsInvalidJSON(t *testing.T) {
+	fs := testutil.NewFakeServer(t, `not json`)
+	c := testutil.NewClient(t, fs)
+
+	var out map[string]any
+	err := c.Do(context.Background(), qwx.Request{Path: "/x"}, &out)
+	if !errors.Is(err, qwx.ErrInvalidResponse) {
+		t.Errorf("error = %v, want ErrInvalidResponse", err)
+	}
+}
+
+// failingCache 是一个总是失败的缓存实现。
+type failingCache struct{}
+
+func (failingCache) Get(context.Context, string) ([]byte, bool, error) {
+	return nil, false, errCacheBroken
+}
+
+func (failingCache) Set(context.Context, string, []byte, time.Duration) error {
+	return errCacheBroken
+}
+
+var errCacheBroken = errors.New("cache broken")
