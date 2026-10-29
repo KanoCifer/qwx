@@ -1,0 +1,208 @@
+name: Release
+
+# 推标签即发布：根模块 vX.Y.Z，rediscache 子模块 rediscache/vX.Y.Z
+on:
+  push:
+    tags:
+      - "v*"
+      - "rediscache/v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify tag
+    runs-on: ubuntu-latest
+    outputs:
+      module: ${{ steps.plan.outputs.module }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse and check version
+        id: plan
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="$TAG"
+          if [[ "$tag" == rediscache/* ]]; then
+            module=rediscache
+            prefix=rediscache/
+            version="${tag#rediscache/}"
+          else
+            module=root
+            prefix=
+            version="$tag"
+          fi
+
+          if ! [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::标签 $tag 不是语义化版本"
+            exit 1
+          fi
+
+          # 正式版本必须高于该模块已发布的最高版本；预发布版本不比大小
+          if [[ "$version" != *-* ]]; then
+            latest=$( { git tag --list "${prefix}v*" | sed "s#^${prefix}##" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vx "$version" || true; } | sort -V | tail -1 )
+            if [[ -n "$latest" ]] && [[ "$(printf '%s\n%s\n' "$version" "$latest" | sort -V | tail -1)" != "$version" ]]; then
+              echo "::error::版本 $version 不高于已发布的 $latest"
+              exit 1
+            fi
+          fi
+
+          # rediscache 依赖的根模块版本必须已经存在，否则下游拉不到
+          if [[ "$module" == rediscache ]]; then
+            dep=$(grep -E 'github.com/KanoCifer/qwx v[0-9]' rediscache/go.mod | head -1 | awk '{print $2}')
+            if [[ -z "$dep" ]]; then
+              echo "::error::rediscache/go.mod 里找不到 qwx 的依赖版本"
+              exit 1
+            fi
+            if ! git tag --list "$dep" | grep -qx "$dep"; then
+              echo "::error::rediscache 依赖的 qwx $dep 还没有发布，先给根模块打标签"
+              exit 1
+            fi
+          fi
+
+          # 正式发布要求标签落在 main 上（确认要发布就设 ALLOW_RELEASE_FROM_BRANCH=1）
+          tag_commit=$(git rev-list -n1 "$tag")
+          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
+            if [[ "${ALLOW_RELEASE_FROM_BRANCH:-}" != "1" ]]; then
+              echo "::error::标签 $tag 不在 origin/main 的历史上，确认要发布就设 ALLOW_RELEASE_FROM_BRANCH=1"
+              exit 1
+            fi
+            echo "::warning::标签 $tag 不在 origin/main 上"
+          fi
+
+          echo "module=$module" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "待发布 $module $version"
+
+  test:
+    name: Test root (${{ matrix.go }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.24", "1.25", "1.26"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Test
+        run: go test -race ./...
+
+  test-rediscache:
+    name: Test rediscache
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rediscache
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # go-redis v9.23.0 起要求 Go 1.26，子模块只在这一个版本上跑
+          go-version: "1.26"
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Test
+        run: go test -race ./...
+
+  publish:
+    name: Publish GitHub Release
+    needs: [verify, test, test-rediscache]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          MODULE: ${{ needs.verify.outputs.module }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，跳过创建"
+            exit 0
+          fi
+          args=(release create "$TAG" --verify-tag --title "$TAG" --generate-notes)
+          if [[ "$VERSION" == *-* ]]; then
+            args+=(--prerelease)
+          elif [[ "$MODULE" == root ]]; then
+            # 只有根模块的正式发布标记为 Latest，子模块发布会顶掉它
+            args+=(--latest)
+          fi
+          gh "${args[@]}"
+          gh release view "$TAG" --json tagName,url --jq '"已发布 \(.tagName) \(.url)"'
+
+      - name: Check module proxy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODULE: ${{ needs.verify.outputs.module }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -uo pipefail
+          if [[ "$MODULE" == root ]]; then
+            path=github.com/KanoCifer/qwx
+          else
+            path=github.com/KanoCifer/qwx/rediscache
+          fi
+          # 代理同步有延迟，最多等 5 分钟；等不到只提示，不阻断发布
+          for _ in $(seq 1 10); do
+            if GOPROXY=https://proxy.golang.org go list -m -versions "$path" 2>/dev/null | grep -qw "$VERSION"; then
+              echo "$path@$VERSION 已在模块代理可见"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::warning::$path@$VERSION 暂未出现在模块代理，稍后重试检查"
