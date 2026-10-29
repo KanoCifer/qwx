@@ -50,6 +50,8 @@ const (
 	FamilyStorm Family = "qwx:storm:"
 	// FamilyAstronomy 是天文数据的键前缀根。
 	FamilyAstronomy Family = "qwx:astronomy:"
+	// FamilyHistorical 是旧一代历史天气的键前缀根。
+	FamilyHistorical Family = "qwx:historical:"
 	// FamilyConsole 是控制台 API 的键前缀根。
 	FamilyConsole Family = "qwx:console:"
 )

@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/KanoCifer/qwx)](https://github.com/KanoCifer/qwx/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg)](https://pkg.go.dev/github.com/KanoCifer/qwx)
 [![Go Report Card](https://goreportcard.com/badge/github.com/KanoCifer/qwx)](https://goreportcard.com/report/github.com/KanoCifer/qwx)
-[![Endpoints](https://img.shields.io/badge/endpoints-23-blue)](https://github.com/KanoCifer/qwx#supported-endpoints)
+[![Endpoints](https://img.shields.io/badge/endpoints-25-blue)](https://github.com/KanoCifer/qwx#supported-endpoints)
 [![Core deps](https://img.shields.io/badge/core-0%20deps-success)](https://github.com/KanoCifer/qwx/blob/main/go.mod)
 [![Stars](https://img.shields.io/github/stars/KanoCifer/qwx?style=social)](https://github.com/KanoCifer/qwx/stargazers)
 
@@ -18,7 +18,8 @@ QWeather ships official SDKs for iOS and Android only — there is no official s
 
 ## Features
 
-- **Broad endpoint coverage**: GeoAPI city and POI lookup, weather forecast (the new generation, `/weather/v1/*`), air quality, weather alerts, solar radiation forecast, ocean tides, life indices, minute-level precipitation, typhoons, and astronomy
+- **Broad endpoint coverage**: GeoAPI city and POI lookup, weather forecast (the new generation, `/weather/v1/*`), air quality, weather alerts, solar radiation forecast, ocean tides, life indices, minute-level precipitation, typhoons, astronomy, and historical weather
+- **Every live endpoint covered (as of 2026-10-29)**: all upstream endpoints still in service are covered. Only two groups are left out — the v7 legacy paths with a scheduled shutdown (`/v7/weather/*`, `/v7/grid-weather/*`, `/v7/solar-radiation/*`, each with a new-generation counterpart) and the deprecated `/v7/historical/air` (no replacement)
 - **One package per resource family**: each package maps to a single upstream resource family, so field shapes and cache keys never bleed across families
 - **Two authentication modes**: JWT (Ed25519-signed, the official recommendation) and API KEY
 - **Zero dependencies**: the core package uses only the standard library — `go.mod` has no `require`
@@ -663,6 +664,34 @@ if err != nil {
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
+### Historical weather
+
+Historical weather (the upstream "time machine") accepts a LocationID only, and the date must fall in the last 10 days, excluding today.
+
+```go
+import (
+	"context"
+	"time"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/v7/historical"
+)
+
+hs := historical.New(base)
+ctx := context.Background()
+// The upstream serves the last 10 days only, excluding today
+date := time.Now().AddDate(0, 0, -1).Format("20060102")
+
+got, err := hs.Weather(ctx, qwx.Location{ID: "101010100"}, date, historical.Options{Lang: qwx.LangZH})
+if err != nil {
+	return err
+}
+if got.Daily != nil {
+	fmt.Println(got.Daily.Date, got.Daily.TempMax, got.Daily.TempMin)
+}
+fmt.Println(len(got.Hourly))
+```
+
 ### Console
 
 The console API reports your own account's finance and request volume rather than
@@ -934,6 +963,7 @@ w := weather.New(fakeDoer{})
 | `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` | `EndpointSun` |
 | `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` | `EndpointMoon` |
 | `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` | `EndpointAngle` |
+| `v7/historical` | `Weather` | `GET /v7/historical/weather` | `Endpoint` |
 | `console` | `Finance` | `GET /finance/v1/summary` | `EndpointFinance` |
 | `console` | `Stats` | `GET /metrics/v1/stats` | `EndpointStats` |
 
@@ -952,6 +982,7 @@ Package layout:
 | `qwx/v7/minutely` | Legacy minute-level precipitation `/v7/minutely/*` |
 | `qwx/v7/storm` | Typhoons `/v7/tropical/*` |
 | `qwx/v7/astronomy` | Astronomy `/v7/astronomy/*` |
+| `qwx/v7/historical` | Legacy historical weather `/v7/historical/weather` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
 | `qwx/console` | Console `/finance/v1/*`, `/metrics/v1/*` |
 | `qwx/rediscache` | Redis cache implementation (separate module, depends on go-redis) |
@@ -960,7 +991,7 @@ One package = one upstream resource family. There are two exceptions: `geo`'s fo
 
 `rediscache` is a standalone Go module with its own `go.mod`, not a subpackage in the table above — it provides no endpoints, only a cache implementation, and it is kept out of the core module because it depends on go-redis.
 
-`Tide`, `Indices`, and `Minutely` exist only in v7 to this day: `/weather/v1/indices/*`, `/v1/indices/*`, and `/ocean/v1/tide/*` all return 404 in testing, and the official documentation still documents the v7 paths.
+`Tide`, `Indices`, and `Minutely` exist only in v7 to this day: `/weather/v1/indices/*`, `/v1/indices/*`, and `/ocean/v1/tide/*` all return 404 in testing, and the official documentation still documents the v7 paths. Historical weather is the same: there is no new-generation counterpart.
 
 ## The bundled Redis cache
 

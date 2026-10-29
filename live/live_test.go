@@ -29,6 +29,7 @@ import (
 	"github.com/KanoCifer/qwx/v1/solarradiation"
 	"github.com/KanoCifer/qwx/v1/weather"
 	"github.com/KanoCifer/qwx/v7/astronomy"
+	"github.com/KanoCifer/qwx/v7/historical"
 	"github.com/KanoCifer/qwx/v7/indices"
 	"github.com/KanoCifer/qwx/v7/minutely"
 	"github.com/KanoCifer/qwx/v7/storm"
@@ -71,6 +72,7 @@ func TestLive(t *testing.T) {
 	sr := solarradiation.New(c)
 	st := storm.New(c)
 	as := astronomy.New(c)
+	hs := historical.New(c)
 	cs := console.New(c)
 
 	t.Run("Current", func(t *testing.T) {
@@ -200,6 +202,19 @@ func TestLive(t *testing.T) {
 			t.Fatalf("Stats: %v", err)
 		}
 		t.Logf("截止=%s，%d 个 API", got.AsOf, len(got.Success))
+	})
+
+	t.Run("HistoricalWeather", func(t *testing.T) {
+		// 上游只给最近 10 天、不含今天的数据。
+		date := time.Now().AddDate(0, 0, -1).Format("20060102")
+		got, err := hs.Weather(ctx, qwx.Location{ID: "101010100"}, date, historical.Options{Lang: qwx.LangZH})
+		if err != nil {
+			t.Fatalf("HistoricalWeather: %v", err)
+		}
+		if got.Daily != nil {
+			t.Logf("%s 最高 %s 最低 %s", got.Daily.Date, got.Daily.TempMax, got.Daily.TempMin)
+		}
+		t.Logf("%d 条逐小时", len(got.Hourly))
 	})
 
 	t.Run("Astronomy", func(t *testing.T) {

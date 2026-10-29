@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/KanoCifer/qwx)](https://github.com/KanoCifer/qwx/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg)](https://pkg.go.dev/github.com/KanoCifer/qwx)
 [![Go Report Card](https://goreportcard.com/badge/github.com/KanoCifer/qwx)](https://goreportcard.com/report/github.com/KanoCifer/qwx)
-[![支持端点](https://img.shields.io/badge/%E6%94%AF%E6%8C%81%E7%AB%AF%E7%82%B9-23%20%E4%B8%AA-blue)](https://github.com/KanoCifer/qwx#支持的接口)
+[![支持端点](https://img.shields.io/badge/%E6%94%AF%E6%8C%81%E7%AB%AF%E7%82%B9-25%20%E4%B8%AA-blue)](https://github.com/KanoCifer/qwx#支持的接口)
 [![核心包零依赖](https://img.shields.io/badge/%E6%A0%B8%E5%BF%83%E5%8C%85-0%20deps-success)](https://github.com/KanoCifer/qwx/blob/main/go.mod)
 [![Stars](https://img.shields.io/github/stars/KanoCifer/qwx?style=social)](https://github.com/KanoCifer/qwx/stargazers)
 
@@ -18,7 +18,8 @@
 
 ## 特性
 
-- **核心接口全覆盖**：GeoAPI 城市与 POI 检索、天气预报（新一代 `/weather/v1/*`）、空气质量、预警、太阳辐射预报、海洋潮汐、生活指数、分钟级降水预报、台风、天文
+- **核心接口全覆盖**：GeoAPI 城市与 POI 检索、天气预报（新一代 `/weather/v1/*`）、空气质量、预警、太阳辐射预报、海洋潮汐、生活指数、分钟级降水预报、台风、天文、历史天气
+- **在役端点全覆盖（截至 2026-10-29）**：上游仍在役的端点已全部接入。没接的只剩两类 —— 已定停服日的 v7 旧路径（`/v7/weather/*`、`/v7/grid-weather/*`、`/v7/solar-radiation/*`，都有新一代对应端点）与已弃用的 `/v7/historical/air`（无替代）
 - **按资源族分包**：一个包对应一个上游资源族，字段形态与缓存键互不污染
 - **两种认证**：JWT（Ed25519 签名，官方推荐）与 API KEY
 - **零依赖**：核心包只用标准库，`go.mod` 没有 `require`
@@ -662,6 +663,34 @@ if err != nil {
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
+### 历史天气
+
+历史天气（上游叫「天气时光机」）只认 LocationID，日期是最近 10 天、不含今天。
+
+```go
+import (
+	"context"
+	"time"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/v7/historical"
+)
+
+hs := historical.New(base)
+ctx := context.Background()
+// 上游只给最近 10 天、不含今天的数据
+date := time.Now().AddDate(0, 0, -1).Format("20060102")
+
+got, err := hs.Weather(ctx, qwx.Location{ID: "101010100"}, date, historical.Options{Lang: qwx.LangZH})
+if err != nil {
+	return err
+}
+if got.Daily != nil {
+	fmt.Println(got.Daily.Date, got.Daily.TempMax, got.Daily.TempMin)
+}
+fmt.Println(len(got.Hourly))
+```
+
 ### 控制台
 
 控制台 API 查的是帐号自己的财务与请求量，不是天气数据。凭据默认没有权限：
@@ -930,6 +959,7 @@ w := weather.New(fakeDoer{})
 | `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` | `EndpointSun` |
 | `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` | `EndpointMoon` |
 | `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` | `EndpointAngle` |
+| `v7/historical` | `Weather` | `GET /v7/historical/weather` | `Endpoint` |
 | `console` | `Finance` | `GET /finance/v1/summary` | `EndpointFinance` |
 | `console` | `Stats` | `GET /metrics/v1/stats` | `EndpointStats` |
 
@@ -948,6 +978,7 @@ w := weather.New(fakeDoer{})
 | `qwx/v7/minutely` | 旧一代分钟级降水 `/v7/minutely/*` |
 | `qwx/v7/storm` | 台风 `/v7/tropical/*` |
 | `qwx/v7/astronomy` | 天文 `/v7/astronomy/*` |
+| `qwx/v7/historical` | 旧一代历史天气 `/v7/historical/weather` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
 | `qwx/console` | 控制台 `/finance/v1/*`、`/metrics/v1/*` |
 | `qwx/rediscache` | Redis 缓存实现（独立模块，依赖 go-redis） |
@@ -956,7 +987,7 @@ w := weather.New(fakeDoer{})
 
 `rediscache` 是独立的 Go 模块（自带 `go.mod`），不是上表的子包 —— 它不提供接口，只提供缓存实现，依赖 go-redis 所以不并入核心模块。
 
-`Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、`/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。
+`Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、`/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。历史天气同理，新一代没有对应端点。
 
 ## qwx 封装的 redis 缓存
 
