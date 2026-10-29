@@ -1,22 +1,64 @@
-# qwx
+<p align="center">
+  <img src="./assets/banner_en.png" width="100%" alt="qwx" />
+</p>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/KanoCifer/qwx/ci.yml?branch=main)](https://github.com/KanoCifer/qwx/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Release](https://img.shields.io/github/v/release/KanoCifer/qwx?display_name=tag)](https://github.com/KanoCifer/qwx/releases)
-[![License](https://img.shields.io/github/license/KanoCifer/qwx)](https://github.com/KanoCifer/qwx/blob/main/LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg)](https://pkg.go.dev/github.com/KanoCifer/qwx)
-[![Go Report Card](https://goreportcard.com/badge/github.com/KanoCifer/qwx)](https://goreportcard.com/report/github.com/KanoCifer/qwx)
-[![Endpoints](https://img.shields.io/badge/endpoints-25-blue)](https://github.com/KanoCifer/qwx#supported-endpoints)
-[![Core deps](https://img.shields.io/badge/core-0%20deps-success)](https://github.com/KanoCifer/qwx/blob/main/go.mod)
-[![Stars](https://img.shields.io/github/stars/KanoCifer/qwx?style=social)](https://github.com/KanoCifer/qwx/stargazers)
+<p align="center">
+  <a href="https://github.com/KanoCifer/qwx/actions/workflows/ci.yml" target="_blank" rel="noopener"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/KanoCifer/qwx/ci.yml?branch=main" height="20"></a>
+  <a href="https://go.dev" target="_blank" rel="noopener"><img alt="Go" src="https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go&logoColor=white" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/releases" target="_blank" rel="noopener"><img alt="Release" src="https://img.shields.io/github/v/release/KanoCifer/qwx?display_name=tag" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/blob/main/LICENSE" target="_blank" rel="noopener"><img alt="License" src="https://img.shields.io/github/license/KanoCifer/qwx" height="20"></a>
+  <a href="https://pkg.go.dev/github.com/KanoCifer/qwx" target="_blank" rel="noopener"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg" height="20"></a>
+  <a href="https://goreportcard.com/report/github.com/KanoCifer/qwx" target="_blank" rel="noopener"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/KanoCifer/qwx" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx#supported-endpoints" target="_blank" rel="noopener"><img alt="Endpoints" src="https://img.shields.io/badge/endpoints-25-blue" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/blob/main/go.mod" target="_blank" rel="noopener"><img alt="Core deps" src="https://img.shields.io/badge/core-0%20deps-success" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/stargazers" target="_blank" rel="noopener"><img alt="Stars" src="https://img.shields.io/github/stars/KanoCifer/qwx?style=social" height="20"></a>
+</p>
 
-[简体中文](README.md) | [English](README_EN.md)
-
-A Go client for the QWeather (和风天气) developer service.
+<p align="center">
+  <a href="README_EN.md"><b>English</b></a> · <a href="README.md">简体中文</a>
+</p>
 
 QWeather ships official SDKs for iOS and Android only — there is no official server-side implementation. qwx is a community-maintained Go SDK that covers the core endpoint families from the upstream documentation, returns typed Go structs, and keeps the core package free of third-party dependencies.
 
-## Features
+---
+
+<details>
+<summary><b>📖 目录</b></summary>
+
+- [✨ Features](#features)
+- [📦 Installation](#installation)
+- [🚀 Quick start](#quick-start)
+- [📖 Usage guide](#usage-guide)
+  - [🔑 Authentication](#authentication)
+  - [⚙️ Client options](#client-options)
+  - [📍 Location](#location)
+  - [🌐 Multi-language](#multi-language)
+  - [🌤️ Weather](#weather)
+  - [🌫️ Air quality](#air-quality)
+  - [⚠️ Weather alerts](#weather-alerts)
+  - [🗺️ GeoAPI lookup](#geoapi-lookup)
+  - [🌊 Tides](#tides)
+  - [🧭 Life indices](#life-indices)
+  - [🌧️ Minute-level precipitation](#minute-level-precipitation)
+  - [☀️ Solar radiation forecast](#solar-radiation-forecast)
+  - [🌀 Typhoons](#typhoons)
+  - [🔭 Astronomy](#astronomy)
+  - [⏳ Historical weather](#historical-weather)
+  - [💼 Console](#console)
+  - [🗄️ Caching](#caching)
+  - [📝 Logging](#logging)
+  - [🚨 Error handling](#error-handling)
+  - [⏱️ Concurrency and timeouts](#concurrency-and-timeouts)
+  - [🧪 Testing](#testing)
+- [🔌 Supported endpoints](#supported-endpoints)
+- [🧩 The bundled Redis cache](#the-bundled-redis-cache)
+- [📚 Documentation](#documentation)
+- [🔗 Official documentation](#official-documentation)
+- [⚖️ License](#license)
+
+</details>
+
+## ✨ Features
 
 - **Broad endpoint coverage**: GeoAPI city and POI lookup, weather forecast (the new generation, `/weather/v1/*`), air quality, weather alerts, solar radiation forecast, ocean tides, life indices, minute-level precipitation, typhoons, astronomy, and historical weather
 - **Every live endpoint covered (as of 2026-10-29)**: the upstream documentation site's 28 endpoint pages are all covered while still in service — 25 are wired up, and the 3 left out (`/v7/weather/now`, `/v7/weather/{days}`, `/v7/weather/{hours}`) are deprecated, shut down on 2027-02-01, and each has a new-generation counterpart. The upstream OpenAPI spec also carries 8 legacy v7 paths the documentation site does not publish (`/v7/warning/now`, `/v7/air/now`, `/v7/air/5d`, `/v7/solar-radiation/{hours}`, `/v7/grid-weather/*`, `/v7/historical/air`); they are either shut down or deprecated, and none of them is wired up
@@ -28,7 +70,9 @@ QWeather ships official SDKs for iOS and Android only — there is no official s
 - **Classified errors**: use `errors.Is` to check the error category instead of parsing error strings
 - **Safe for concurrent use**: `Client` is stateless and can be shared directly
 
-## Installation
+---
+
+## 📦 Installation
 
 ```bash
 go get github.com/KanoCifer/qwx
@@ -42,7 +86,9 @@ For a Redis cache, add the separate cache module. It depends on go-redis v9.23.0
 go get github.com/KanoCifer/qwx/rediscache
 ```
 
-## Quick start
+---
+
+## 🚀 Quick start
 
 Three steps: build the auth, build the base client, build the client for an endpoint family.
 
@@ -109,9 +155,11 @@ go run ./examples/basic
 
 The API Host can only be obtained from the console "Settings" page; there is no default. The public domains `devapi.qweather.com` (shut down 2026-01), `api.qweather.com`, and `geoapi.qweather.com` (shut down 2026-06) have all expired. When the Host is given as a bare domain without a scheme, the SDK prepends `https://` automatically.
 
-## Usage guide
+---
 
-### Authentication
+## 📖 Usage guide
+
+### 🔑 Authentication
 
 The two modes cannot be combined — sending both makes the upstream reject the request. JWT is the default choice.
 
@@ -149,7 +197,7 @@ auth, err := qwx.NewAPIKeyAuth("YOUR_API_KEY")
 
 > Officially announced: from 2027-01-01 the daily request volume for API KEY authentication is restricted, and SDK 5+ no longer supports API KEY. New projects should use JWT.
 
-### Client options
+### ⚙️ Client options
 
 Every option is passed to the base client constructor:
 
@@ -170,7 +218,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 )
 ```
 
-### Location
+### 📍 Location
 
 `qwx.Location` unifies the three location forms the upstream accepts:
 
@@ -212,7 +260,7 @@ The new generation accepts coordinates only. To convert a LocationID, call `geo.
 
 Coordinate order differs between generations: the new generation uses path parameters with latitude first (`Location.Path()`), while v7 and GeoAPI use query parameters with longitude first (`Location.Query()`). Reversing them makes the upstream return 400.
 
-### Multi-language
+### 🌐 Multi-language
 
 The upstream switches the response language with the `lang` query parameter. Languages are represented by `qwx.Lang`; the SDK ships the 31 languages listed on the official "Multi-language" page:
 
@@ -264,7 +312,7 @@ lang, ok := qwx.LookupLang("zh-hans") // another code for Simplified Chinese
 
 A malformed language code returns `ErrInvalidParameter` without hitting the upstream. The solar radiation forecast, tides, typhoons, sunrise/sunset and solar elevation angle endpoints have no language parameter — the upstream does not accept one.
 
-### Weather
+### 🌤️ Weather
 
 ```go
 import (
@@ -308,7 +356,7 @@ for _, d := range daily.Days {
 
 `Hourly` takes 1~240 hours and `Daily` takes 1~10 days. Out-of-range values return `ErrInvalidParameter` without reaching the upstream. Do not assume list lengths: the upstream may return fewer entries.
 
-### Air quality
+### 🌫️ Air quality
 
 ```go
 import (
@@ -353,7 +401,7 @@ fmt.Println(len(daily.Days), len(hourly.Hours))
 
 AQI values use different scales per standard (QAQI is 0~1, US EPA is 0~500), so do not compare across standards.
 
-### Weather alerts
+### ⚠️ Weather alerts
 
 ```go
 import (
@@ -378,7 +426,7 @@ for _, a := range result.Alerts {
 
 Alerts accept coordinates only. When there is no alert, the upstream returns an empty list and `Metadata.ZeroResult` points to `true`.
 
-### GeoAPI lookup
+### 🗺️ GeoAPI lookup
 
 ```go
 import (
@@ -456,7 +504,7 @@ for _, s := range cities.Refer.Sources {
 
 The five legacy (v7) endpoint families (tides, life indices, minute-level precipitation, typhoons, astronomy) carry the same `Refer` field, accessed the same way.
 
-### Tides
+### 🌊 Tides
 
 Look up the tide station ID with `geo.LookupPOI` and `geo.POITSTA`, and use the station's local calendar day:
 
@@ -484,7 +532,7 @@ for _, t := range result.TideTable {
 
 Tide height stays a string, preserving the decimal precision given by the upstream.
 
-### Life indices
+### 🧭 Life indices
 
 ```go
 import (
@@ -515,7 +563,7 @@ if err != nil {
 fmt.Println(len(multi.Daily))
 ```
 
-### Minute-level precipitation
+### 🌧️ Minute-level precipitation
 
 ```go
 import (
@@ -541,7 +589,7 @@ for _, m := range result.Minutely {
 
 This endpoint covers China only; the upstream has no data for coordinates outside the country. `Precip` is a string: an empty string means "no data", while `"0.00"` means "it is genuinely not raining".
 
-### Solar radiation forecast
+### ☀️ Solar radiation forecast
 
 A new-generation endpoint that accepts coordinates only, with latitude first in the path:
 
@@ -590,7 +638,7 @@ for _, f := range result.Forecasts {
 
 This family has no `lang` parameter; the upstream returns no text descriptions and rejects requests that carry one.
 
-### Typhoons
+### 🌀 Typhoons
 
 The three endpoints take no location and are queried by basin and typhoon ID:
 
@@ -626,7 +674,7 @@ if err != nil {
 fmt.Println(len(track.Track))
 ```
 
-### Astronomy
+### 🔭 Astronomy
 
 ```go
 import (
@@ -664,7 +712,7 @@ if err != nil {
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
-### Historical weather
+### ⏳ Historical weather
 
 Historical weather (the upstream "time machine") accepts a LocationID only, and the date must fall in the last 10 days, excluding today.
 
@@ -692,7 +740,7 @@ if got.Daily != nil {
 fmt.Println(len(got.Hourly))
 ```
 
-### Console
+### 💼 Console
 
 The console API reports your own account's finance and request volume rather than
 weather data. Credentials have no access by default: the account owner has to
@@ -745,7 +793,7 @@ for _, p := range fin.AvailableResourcePlans {
 The data is cut off at the previous hour or earlier and may lag the console web
 page by an hour or more — trust the `AsOf` field in the response.
 
-### Caching
+### 🗄️ Caching
 
 The SDK ships no cache implementation. Inject an existing one:
 
@@ -829,7 +877,7 @@ Use `qwx.TTLPolicyFunc` to adjust durations dynamically by time or load. To bypa
 
 > Changing the TTL does not change the cache key: entries already written expire according to the TTL in effect when they were written. To apply a new TTL immediately, replace the cache instance or clear the keys manually.
 
-### Logging
+### 📝 Logging
 
 ```go
 import "github.com/KanoCifer/qwx"
@@ -857,7 +905,7 @@ Credentials travel in the request header and never reach the log; neither does t
 
 The default logger is `slog.DiscardHandler`: it builds no fields, so the per-request overhead is a single `Enabled` call.
 
-### Error handling
+### 🚨 Error handling
 
 Use `errors.Is` to check the category and `errors.As` to extract upstream details:
 
@@ -899,7 +947,7 @@ Error categories:
 
 The client validates first: out-of-range parameters and unsupported location forms return locally without contacting the upstream. Upstream 5xx responses and network errors are retried with backoff at 1, 2, and 3 seconds, up to 3 retries; 4xx responses are not retried.
 
-### Concurrency and timeouts
+### ⏱️ Concurrency and timeouts
 
 `qwx.Client` is stateless and can be shared directly. Every method takes a `context.Context`, so timeouts and cancellation are controlled by the context.
 
@@ -917,7 +965,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 	qwx.WithHTTPClient(&http.Client{Timeout: 10 * time.Second}))
 ```
 
-### Testing
+### 🧪 Testing
 
 Endpoint packages depend only on the `qwx.Doer` interface, so a fake implementation can be injected to test their logic in isolation:
 
@@ -936,7 +984,9 @@ func (fakeDoer) Do(_ context.Context, req qwx.Request, out any) error { ... }
 w := weather.New(fakeDoer{})
 ```
 
-## Supported endpoints
+---
+
+## 🔌 Supported endpoints
 
 | Package | Method | Upstream endpoint | Endpoint constant |
 | --- | --- | --- | --- |
@@ -993,7 +1043,9 @@ One package = one upstream resource family. There are two exceptions: `geo`'s fo
 
 `Tide`, `Indices`, and `Minutely` exist only in v7 to this day: `/weather/v1/indices/*`, `/v1/indices/*`, and `/ocean/v1/tide/*` all return 404 in testing, and the official documentation still documents the v7 paths. Historical weather is the same: there is no new-generation counterpart.
 
-## The bundled Redis cache
+---
+
+## 🧩 The bundled Redis cache
 
 ```bash
 go get github.com/KanoCifer/qwx/rediscache
@@ -1001,7 +1053,9 @@ go get github.com/KanoCifer/qwx/rediscache
 
 Its constructor does not connect to Redis, so a wrong address only surfaces through `cache.Ping(ctx)`. A `Set` with a ttl of 0 or less returns `qwx.ErrInvalidParameter` and writes nothing — cache entries without an expiry keep serving stale data forever.
 
-## Documentation
+---
+
+## 📚 Documentation
 
 | Task | Document |
 | --- | --- |
@@ -1013,13 +1067,17 @@ Its constructor does not connect to Redis, so a wrong address only surfaces thro
 | Wiring up logging, inspecting request logs | [docs/logging.md](docs/logging.md) |
 | Running tests, live smoke tests | [docs/verification.md](docs/verification.md) |
 
-## Official documentation
+---
+
+## 🔗 Official documentation
 
 - Developer docs: https://dev.qweather.com/docs/
 - Authentication: https://dev.qweather.com/docs/configuration/authentication/
 - Best practices (do not assume): https://dev.qweather.com/docs/best-practices/no-assumptions/
 
-## License
+---
+
+## ⚖️ License
 
 This package is released under the MIT license. See [LICENSE](LICENSE).
 

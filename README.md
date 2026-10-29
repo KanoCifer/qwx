@@ -1,22 +1,64 @@
-# qwx
+<p align="center">
+  <img src="./assets/banner.png" width="100%" alt="qwx" />
+</p>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/KanoCifer/qwx/ci.yml?branch=main)](https://github.com/KanoCifer/qwx/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Release](https://img.shields.io/github/v/release/KanoCifer/qwx?display_name=tag)](https://github.com/KanoCifer/qwx/releases)
-[![License](https://img.shields.io/github/license/KanoCifer/qwx)](https://github.com/KanoCifer/qwx/blob/main/LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg)](https://pkg.go.dev/github.com/KanoCifer/qwx)
-[![Go Report Card](https://goreportcard.com/badge/github.com/KanoCifer/qwx)](https://goreportcard.com/report/github.com/KanoCifer/qwx)
-[![支持端点](https://img.shields.io/badge/%E6%94%AF%E6%8C%81%E7%AB%AF%E7%82%B9-25%20%E4%B8%AA-blue)](https://github.com/KanoCifer/qwx#支持的接口)
-[![核心包零依赖](https://img.shields.io/badge/%E6%A0%B8%E5%BF%83%E5%8C%85-0%20deps-success)](https://github.com/KanoCifer/qwx/blob/main/go.mod)
-[![Stars](https://img.shields.io/github/stars/KanoCifer/qwx?style=social)](https://github.com/KanoCifer/qwx/stargazers)
+<p align="center">
+  <a href="https://github.com/KanoCifer/qwx/actions/workflows/ci.yml" target="_blank" rel="noopener"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/KanoCifer/qwx/ci.yml?branch=main" height="20"></a>
+  <a href="https://go.dev" target="_blank" rel="noopener"><img alt="Go" src="https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go&logoColor=white" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/releases" target="_blank" rel="noopener"><img alt="Release" src="https://img.shields.io/github/v/release/KanoCifer/qwx?display_name=tag" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/blob/main/LICENSE" target="_blank" rel="noopener"><img alt="License" src="https://img.shields.io/github/license/KanoCifer/qwx" height="20"></a>
+  <a href="https://pkg.go.dev/github.com/KanoCifer/qwx" target="_blank" rel="noopener"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/KanoCifer/qwx.svg" height="20"></a>
+  <a href="https://goreportcard.com/report/github.com/KanoCifer/qwx" target="_blank" rel="noopener"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/KanoCifer/qwx" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx#支持的接口" target="_blank" rel="noopener"><img alt="支持端点" src="https://img.shields.io/badge/%E6%94%AF%E6%8C%81%E7%AB%AF%E7%82%B9-25%20%E4%B8%AA-blue" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/blob/main/go.mod" target="_blank" rel="noopener"><img alt="核心包零依赖" src="https://img.shields.io/badge/%E6%A0%B8%E5%BF%83%E5%8C%85-0%20deps-success" height="20"></a>
+  <a href="https://github.com/KanoCifer/qwx/stargazers" target="_blank" rel="noopener"><img alt="Stars" src="https://img.shields.io/github/stars/KanoCifer/qwx?style=social" height="20"></a>
+</p>
 
-[简体中文](README.md) | [English](README_EN.md)
-
-和风天气（QWeather）开发服务的 Go 客户端。
+<p align="center">
+  <a href="README.md"><b>简体中文</b></a> · <a href="README_EN.md">English</a>
+</p>
 
 qwx 是社区维护的 Go SDK，覆盖上游文档中的核心接口族，返回类型化的 Go 结构体，核心包零第三方依赖。
 
-## 特性
+---
+
+<details>
+<summary><b>📖 目录</b></summary>
+
+- [✨ 特性](#特性)
+- [📦 安装](#安装)
+- [🚀 快速开始](#快速开始)
+- [📖 使用指南](#使用指南)
+  - [🔑 认证](#认证)
+  - [⚙️ 客户端选项](#客户端选项)
+  - [📍 位置](#位置)
+  - [🌐 多语言](#多语言)
+  - [🌤️ 天气](#天气)
+  - [🌫️ 空气质量](#空气质量)
+  - [⚠️ 预警](#预警)
+  - [🗺️ GeoAPI 检索](#geoapi-检索)
+  - [🌊 潮汐](#潮汐)
+  - [🧭 生活指数](#生活指数)
+  - [🌧️ 分钟级降水](#分钟级降水)
+  - [☀️ 太阳辐射预报](#太阳辐射预报)
+  - [🌀 台风](#台风)
+  - [🔭 天文](#天文)
+  - [⏳ 历史天气](#历史天气)
+  - [💼 控制台](#控制台)
+  - [🗄️ 缓存](#缓存)
+  - [📝 日志](#日志)
+  - [🚨 错误处理](#错误处理)
+  - [⏱️ 并发与超时](#并发与超时)
+  - [🧪 测试](#测试)
+- [🔌 支持的接口](#支持的接口)
+- [🧩 qwx 封装的 redis 缓存](#qwx-封装的-redis-缓存)
+- [📚 文档](#文档)
+- [🔗 官方文档](#官方文档)
+- [⚖️ 许可](#许可)
+
+</details>
+
+## ✨ 特性
 
 - **核心接口全覆盖**：GeoAPI 城市与 POI 检索、天气预报（新一代 `/weather/v1/*`）、空气质量、预警、太阳辐射预报、海洋潮汐、生活指数、分钟级降水预报、台风、天文、历史天气
 - **在役端点全覆盖（截至 2026-10-29）**：上游 28 个端点，在役的都已接入。
@@ -28,7 +70,9 @@ qwx 是社区维护的 Go SDK，覆盖上游文档中的核心接口族，返回
 - **错误可分类**：用 `errors.Is` 判断类别，无需解析错误字符串
 - **并发安全**：`Client` 无状态，可直接共享
 
-## 安装
+---
+
+## 📦 安装
 
 ```bash
 go get github.com/KanoCifer/qwx
@@ -42,7 +86,9 @@ go get github.com/KanoCifer/qwx
 go get github.com/KanoCifer/qwx/rediscache
 ```
 
-## 快速开始
+---
+
+## 🚀 快速开始
 
 三步：创建认证、创建基础客户端、创建接口族的客户端。
 
@@ -108,9 +154,11 @@ go run ./examples/basic
 
 API Host 只能从控制台「设置」页取，没有默认值：公共域名 `devapi.qweather.com`（2026-01 停服）、`api.qweather.com`、`geoapi.qweather.com`（2026-06 停服）陆续失效。Host 只写域名不带 scheme 时，SDK 自动补 `https://`。
 
-## 使用指南
+---
 
-### 认证
+## 📖 使用指南
+
+### 🔑 认证
 
 两种认证不能同时使用，同时带上会让上游拒绝请求。默认选 JWT。
 
@@ -148,7 +196,7 @@ auth, err := qwx.NewAPIKeyAuth("YOUR_API_KEY")
 
 > 官方已公告：2027-01-01 起限制用 API KEY 认证的每日请求量，且 SDK 5+ 不再支持 API KEY。新项目建议直接用 JWT。
 
-### 客户端选项
+### ⚙️ 客户端选项
 
 所有选项都传给基础客户端构造器：
 
@@ -169,7 +217,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 )
 ```
 
-### 位置
+### 📍 位置
 
 `qwx.Location` 收敛了上游的三种位置形态：
 
@@ -211,7 +259,7 @@ fmt.Println(loc, station, city)
 
 坐标顺序分两代：新一代走路径参数，纬度在前（`Location.Path()`）；v7 与 GeoAPI 走查询参数，经度在前（`Location.Query()`）。写反了上游直接回 400。
 
-### 多语言
+### 🌐 多语言
 
 上游用 `lang` 查询参数切换返回的语言。语言用 `qwx.Lang` 表示，SDK 内置官方「多语言」页列出的 31 种语言：
 
@@ -263,7 +311,7 @@ lang, ok := qwx.LookupLang("zh-hans") // 简体中文的另一个等价代码
 
 语言代码形态不对时返回 `ErrInvalidParameter`，不打上游。太阳辐射预报、潮汐、台风、日出日落与太阳高度角这几个端点没有语言参数，上游不认。
 
-### 天气
+### 🌤️ 天气
 
 ```go
 import (
@@ -307,7 +355,7 @@ for _, d := range daily.Days {
 
 `Hourly` 的 hours 取 1~240，`Daily` 的 days 取 1~10，越界返回 `ErrInvalidParameter`，不打上游。列表长度不假设，上游可能给得更少。
 
-### 空气质量
+### 🌫️ 空气质量
 
 ```go
 import (
@@ -352,7 +400,7 @@ fmt.Println(len(daily.Days), len(hourly.Hours))
 
 不同标准的 AQI 量纲不同（QAQI 是 0~1，US EPA 是 0~500），不要跨标准比较。
 
-### 预警
+### ⚠️ 预警
 
 ```go
 import (
@@ -377,7 +425,7 @@ for _, a := range result.Alerts {
 
 预警只认坐标。没有预警时上游返回空列表，`Metadata.ZeroResult` 指向 `true`。
 
-### GeoAPI 检索
+### 🗺️ GeoAPI 检索
 
 ```go
 import (
@@ -455,7 +503,7 @@ for _, s := range cities.Refer.Sources {
 
 旧一代（v7）五个端点族（潮汐、生活指数、分钟级降水、台风、天文）的结果同样带 `Refer`，取法一样。
 
-### 潮汐
+### 🌊 潮汐
 
 潮汐站 ID 用 `geo.LookupPOI` 配 `geo.POITSTA` 检索，日期用站点当地当天：
 
@@ -483,7 +531,7 @@ for _, t := range result.TideTable {
 
 潮位高度保持字符串，保留上游给的小数位数。
 
-### 生活指数
+### 🧭 生活指数
 
 ```go
 import (
@@ -514,7 +562,7 @@ if err != nil {
 fmt.Println(len(multi.Daily))
 ```
 
-### 分钟级降水
+### 🌧️ 分钟级降水
 
 ```go
 import (
@@ -540,7 +588,7 @@ for _, m := range result.Minutely {
 
 只覆盖中国区域，境外坐标上游没有数据。`Precip` 是字符串：空串表示「无此数据」，`"0.00"` 表示「真的没下雨」。
 
-### 太阳辐射预报
+### ☀️ 太阳辐射预报
 
 新一代端点，只认坐标，路径参数纬度在前：
 
@@ -589,7 +637,7 @@ for _, f := range result.Forecasts {
 
 这一族没有 `lang` 参数，上游不返回文字描述，多传会被拒。
 
-### 台风
+### 🌀 台风
 
 三个端点都不收位置参数，按流域与台风 ID 检索：
 
@@ -625,7 +673,7 @@ if err != nil {
 fmt.Println(len(track.Track))
 ```
 
-### 天文
+### 🔭 天文
 
 ```go
 import (
@@ -663,7 +711,7 @@ if err != nil {
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
-### 历史天气
+### ⏳ 历史天气
 
 历史天气（上游叫「天气时光机」）只认 LocationID，日期是最近 10 天、不含今天。
 
@@ -691,7 +739,7 @@ if got.Daily != nil {
 fmt.Println(len(got.Hourly))
 ```
 
-### 控制台
+### 💼 控制台
 
 控制台 API 查的是帐号自己的财务与请求量，不是天气数据。凭据默认没有权限：
 帐号所有者要在控制台的「项目管理 - 凭据 - 控制台权限」里开通，否则上游回 403。
@@ -741,7 +789,7 @@ for _, p := range fin.AvailableResourcePlans {
 返回的数据截止至上一个小时或更早，与控制台网页上显示的可能有 1 小时或更长的
 延迟，以响应里的 `AsOf` 为准。
 
-### 缓存
+### 🗄️ 缓存
 
 SDK 不内置缓存实现，注入已有实现：
 
@@ -825,7 +873,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 
 > 改 TTL 不改缓存键：已写入的旧条目按写入时的 TTL 到期，想立刻生效要换缓存实例或手动清键。
 
-### 日志
+### 📝 日志
 
 ```go
 import "github.com/KanoCifer/qwx"
@@ -853,7 +901,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com", qwx.WithLogger(slog.D
 
 默认 logger 是 `slog.DiscardHandler`：不构造字段，每个请求的额外开销只有一次 `Enabled` 调用。
 
-### 错误处理
+### 🚨 错误处理
 
 `errors.Is` 判断类别，`errors.As` 取上游细节：
 
@@ -895,7 +943,7 @@ if errors.As(err, &ue) {
 
 客户端先校验，参数越界与位置形态不对都在本地返回，不打上游。上游 5xx 与网络错误会按退避重试，退避间隔依次是 1 秒、2 秒、3 秒，最多重试 3 次；4xx 不重试。
 
-### 并发与超时
+### ⏱️ 并发与超时
 
 `qwx.Client` 无状态，可以直接共享。所有方法都接受 `context.Context`，超时与取消由 ctx 控制。
 
@@ -913,7 +961,7 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 	qwx.WithHTTPClient(&http.Client{Timeout: 10 * time.Second}))
 ```
 
-### 测试
+### 🧪 测试
 
 端点子包只依赖 `qwx.Doer` 接口，可以注入假实现测自己的逻辑：
 
@@ -932,7 +980,9 @@ func (fakeDoer) Do(_ context.Context, req qwx.Request, out any) error { ... }
 w := weather.New(fakeDoer{})
 ```
 
-## 支持的接口
+---
+
+## 🔌 支持的接口
 
 | 包 | 方法 | 上游接口 | 端点常量 |
 | --- | --- | --- | --- |
@@ -989,7 +1039,9 @@ w := weather.New(fakeDoer{})
 
 `Tide`、`Indices`、`Minutely` 至今只有 v7 版本：实测 `/weather/v1/indices/*`、`/v1/indices/*`、`/ocean/v1/tide/*` 全部 404，官方文档也仍是 v7 路径。历史天气同理，新一代没有对应端点。
 
-## qwx 封装的 redis 缓存
+---
+
+## 🧩 qwx 封装的 redis 缓存
 
 ```bash
 go get github.com/KanoCifer/qwx/rediscache
@@ -997,7 +1049,9 @@ go get github.com/KanoCifer/qwx/rediscache
 
 它的构造函数不连 Redis，地址写错要靠 `cache.Ping(ctx)` 才暴露。`Set` 的 ttl 小于等于 0 会返回 `qwx.ErrInvalidParameter` 且不写入 —— 不带过期时间的缓存会一直是旧数据。
 
-## 文档
+---
+
+## 📚 文档
 
 | 场景 | 文档 |
 | --- | --- |
@@ -1009,13 +1063,17 @@ go get github.com/KanoCifer/qwx/rediscache
 | 接日志、排查请求记录 | [docs/logging.md](docs/logging.md) |
 | 跑测试、联网冒烟 | [docs/verification.md](docs/verification.md) |
 
-## 官方文档
+---
+
+## 🔗 官方文档
 
 - 开发文档：https://dev.qweather.com/docs/
 - 身份认证：https://dev.qweather.com/docs/configuration/authentication/
 - 最佳实践（不要假设）：https://dev.qweather.com/docs/best-practices/no-assumptions/
 
-## 许可
+---
+
+## ⚖️ 许可
 
 本包遵循 MIT 许可，见 [LICENSE](LICENSE)。
 
