@@ -162,8 +162,11 @@ func hourlyCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // opts.Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
 //
-// 官方文档没有这个端点的独立页面，lang 的支持无从核实 —— 上游与其他
-// 空气质量端点同源，接受 lang。
+// 官方文档页：https://dev.qweather.com/docs/api/air-quality/air-station/ ——
+// 明确带 lang 参数。
+//
+// 上游警告：监测站的观测值仅供参考，可能由于故障、移除、维护或当地法律法规
+// 等各种原因导致数据延迟或缺失，无法确保该数据的可用性。
 //
 // 缓存键：`qwx:aq:v1:station:<id>` 加语言后缀。
 //

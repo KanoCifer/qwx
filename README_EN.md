@@ -19,7 +19,7 @@ QWeather ships official SDKs for iOS and Android only — there is no official s
 ## Features
 
 - **Broad endpoint coverage**: GeoAPI city and POI lookup, weather forecast (the new generation, `/weather/v1/*`), air quality, weather alerts, solar radiation forecast, ocean tides, life indices, minute-level precipitation, typhoons, astronomy, and historical weather
-- **Every live endpoint covered (as of 2026-10-29)**: all upstream endpoints still in service are covered. Only two groups are left out — the v7 legacy paths with a scheduled shutdown (`/v7/weather/*`, `/v7/grid-weather/*`, `/v7/solar-radiation/*`, each with a new-generation counterpart) and the deprecated `/v7/historical/air` (no replacement)
+- **Every live endpoint covered (as of 2026-10-29)**: the upstream documentation site's 28 endpoint pages are all covered while still in service — 25 are wired up, and the 3 left out (`/v7/weather/now`, `/v7/weather/{days}`, `/v7/weather/{hours}`) are deprecated, shut down on 2027-02-01, and each has a new-generation counterpart. The upstream OpenAPI spec also carries 8 legacy v7 paths the documentation site does not publish (`/v7/warning/now`, `/v7/air/now`, `/v7/air/5d`, `/v7/solar-radiation/{hours}`, `/v7/grid-weather/*`, `/v7/historical/air`); they are either shut down or deprecated, and none of them is wired up
 - **One package per resource family**: each package maps to a single upstream resource family, so field shapes and cache keys never bleed across families
 - **Two authentication modes**: JWT (Ed25519-signed, the official recommendation) and API KEY
 - **Zero dependencies**: the core package uses only the standard library — `go.mod` has no `require`

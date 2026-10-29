@@ -137,6 +137,18 @@ func TestLive(t *testing.T) {
 		}
 	})
 
+	t.Run("AirStation", func(t *testing.T) {
+		// 监测站 ID 取自官方文档示例。上游导航里没挂这个端点，
+		// 用的是 OpenAPI 规范里的路径 /airquality/v1/station(s)/{locationId}。
+		got, err := aq.Station(ctx, "P58911", airquality.Options{Lang: qwx.LangZH})
+		if err != nil {
+			t.Fatalf("Station: %v", err)
+		}
+		for _, p := range got.Pollutants {
+			t.Logf("%s %v%s", p.Code, p.Concentration.Value, p.Concentration.Unit)
+		}
+	})
+
 	t.Run("Alerts", func(t *testing.T) {
 		got, err := al.Current(ctx, loc, alert.Options{Lang: qwx.LangZH, LocalTime: true})
 		if err != nil {
