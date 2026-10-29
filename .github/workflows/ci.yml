@@ -15,12 +15,13 @@ jobs:
       matrix:
         go: ["1.24", "1.25", "1.26"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+          cache: false
 
       - name: Build
         run: go build ./...
@@ -53,12 +54,13 @@ jobs:
       run:
         working-directory: rediscache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+          cache: false
 
       - name: Build
         run: go build ./...

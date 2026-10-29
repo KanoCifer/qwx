@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -94,12 +94,13 @@ jobs:
       matrix:
         go: ["1.24", "1.25", "1.26"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+          cache: false
 
       - name: Build
         run: go build ./...
@@ -126,13 +127,14 @@ jobs:
       run:
         working-directory: rediscache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # go-redis v9.23.0 起要求 Go 1.26，子模块只在这一个版本上跑
           go-version: "1.26"
           check-latest: true
+          cache-dependency-path: rediscache/go.sum
 
       - name: Build
         run: go build ./...
@@ -159,7 +161,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -175,14 +177,23 @@ jobs:
             echo "Release $TAG 已存在，跳过创建"
             exit 0
           fi
+          # 记录发布前的 Latest，子模块发布后要把它指回去
+          previous_latest=$(gh release list --limit 100 --json tagName,isLatest --jq '[.[] | select(.isLatest) | .tagName] | .[0] // empty')
           args=(release create "$TAG" --verify-tag --title "$TAG" --generate-notes)
           if [[ "$VERSION" == *-* ]]; then
             args+=(--prerelease)
           elif [[ "$MODULE" == root ]]; then
-            # 只有根模块的正式发布标记为 Latest，子模块发布会顶掉它
+            # 根模块的正式发布才标记 Latest
             args+=(--latest)
           fi
           gh "${args[@]}"
+          if [[ "$MODULE" != root ]]; then
+            # 子模块发布不占用 Latest，Latest 留在根模块上
+            gh release edit "$TAG" --latest=false
+            if [[ -n "$previous_latest" ]]; then
+              gh release edit "$previous_latest" --latest
+            fi
+          fi
           gh release view "$TAG" --json tagName,url --jq '"已发布 \(.tagName) \(.url)"'
 
       - name: Check module proxy
