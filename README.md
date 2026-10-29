@@ -662,7 +662,55 @@ if err != nil {
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
-日期格式是 `YYYYMMDD`，上游最多接受未来 60 天（含今天）。
+### 控制台
+
+控制台 API 查的是帐号自己的财务与请求量，不是天气数据。凭据默认没有权限：
+帐号所有者要在控制台的「项目管理 - 凭据 - 控制台权限」里开通，否则上游回 403。
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/console"
+)
+
+c := console.New(base)
+ctx := context.Background()
+
+fin, err := c.Finance(ctx)
+if err != nil {
+	return err
+}
+fmt.Println(fin.Currency, fin.Balance, fin.AsOf)
+
+// 待支付的账单
+for _, b := range fin.PendingBills {
+	fmt.Println(b.Number, b.Type, b.Status, b.AmountDue, b.DueDate)
+}
+
+// 最近 24 小时的请求量统计
+stats, err := c.Stats(ctx, console.StatsOptions{})
+if err != nil {
+	return err
+}
+for _, s := range stats.Success {
+	fmt.Println(s.API, s.Hours)
+}
+```
+
+`Project` 与 `Credential` 互斥，都留空时统计帐号下所有项目与凭据。资源包的
+总请求量上游给的是字符串，SDK 用 `json.Number` 收：
+
+```go
+for _, p := range fin.AvailableResourcePlans {
+	n, _ := p.Requests.Int64()
+	fmt.Println(p.BillNumber, n)
+}
+```
+
+返回的数据截止至上一个小时或更早，与控制台网页上显示的可能有 1 小时或更长的
+延迟，以响应里的 `AsOf` 为准。
 
 ### 缓存
 
@@ -882,12 +930,14 @@ w := weather.New(fakeDoer{})
 | `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` | `EndpointSun` |
 | `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` | `EndpointMoon` |
 | `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` | `EndpointAngle` |
+| `console` | `Finance` | `GET /finance/v1/summary` | `EndpointFinance` |
+| `console` | `Stats` | `GET /metrics/v1/stats` | `EndpointStats` |
 
 包结构：
 
 | 包 | 承载 |
 | --- | --- |
-| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、两代共用的请求结构、`Refer` |
+| `qwx` | 基础客户端、认证、缓存、`Location`、错误分类、两代共用的请求结构、`Refer`、`MetaData` |
 | `qwx/v1` | 新一代跨端点族共用的基础类型（`Metadata`、`Value`） |
 | `qwx/v1/weather` | 新一代天气 `/weather/v1/*` |
 | `qwx/v1/airquality` | 新一代空气质量 `/airquality/v1/*` |
@@ -899,9 +949,10 @@ w := weather.New(fakeDoer{})
 | `qwx/v7/storm` | 台风 `/v7/tropical/*` |
 | `qwx/v7/astronomy` | 天文 `/v7/astronomy/*` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
+| `qwx/console` | 控制台 `/finance/v1/*`、`/metrics/v1/*` |
 | `qwx/rediscache` | Redis 缓存实现（独立模块，依赖 go-redis） |
 
-一个包 = 一个上游资源族。`geo` 是唯一的例外：它的四个检索端点共享同一个地点类型，拆开会让该类型失去归属。
+一个包 = 一个上游资源族。有两个例外：`geo` 的四个检索端点共享同一个地点类型，`console` 的两个端点在上游归在同一页文档下、共享同一套响应骨架 —— 拆开会让这些类型失去归属。
 
 `rediscache` 是独立的 Go 模块（自带 `go.mod`），不是上表的子包 —— 它不提供接口，只提供缓存实现，依赖 go-redis 所以不并入核心模块。
 

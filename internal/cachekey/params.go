@@ -62,6 +62,14 @@ type Params struct {
 	//
 	// 只有太阳辐射预报认这个参数。
 	Extra string
+	// Project 是项目 ID。
+	//
+	// 只有控制台的请求量统计认这个参数。
+	Project string
+	// Credential 是凭据 ID。
+	//
+	// 只有控制台的请求量统计认这个参数，与 Project 互斥。
+	Credential string
 }
 
 // Query 生成上游查询参数。
@@ -100,16 +108,22 @@ func (p Params) Query() url.Values {
 	if p.Extra != "" {
 		q.Set("extra", p.Extra)
 	}
+	if p.Project != "" {
+		q.Set("project", p.Project)
+	}
+	if p.Credential != "" {
+		q.Set("credential", p.Credential)
+	}
 	return q
 }
 
 // suffix 是参数对缓存键的影响片段。
 //
 // 顺序固定：语言 → 本地时间 → 条数 → 半径 → 行政区划 → 搜索范围 → 城市
-// → 时间间隔 → 倾斜角 → 方位角 → 额外信息。已发布的键字面量按这个顺序排，
-// 改动会让旧缓存条目失效。
+// → 时间间隔 → 倾斜角 → 方位角 → 额外信息 → 项目 → 凭据。已发布的键字面量
+// 按这个顺序排，改动会让旧缓存条目失效。
 //
-// 后七个字段是新加的，追加在已有字段之后：老调用方不设它们，键的字节
+// 后九个字段是新加的，追加在已有字段之后：老调用方不设它们，键的字节
 // 与发布时完全一致。
 func (p Params) suffix() string {
 	var b strings.Builder
@@ -145,6 +159,12 @@ func (p Params) suffix() string {
 	}
 	if p.Extra != "" {
 		b.WriteString(":extra=" + p.Extra)
+	}
+	if p.Project != "" {
+		b.WriteString(":project=" + p.Project)
+	}
+	if p.Credential != "" {
+		b.WriteString(":credential=" + p.Credential)
 	}
 	return b.String()
 }

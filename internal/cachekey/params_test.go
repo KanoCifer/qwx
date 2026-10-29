@@ -58,23 +58,27 @@ func TestParamsQueryIncludesFamilyParams(t *testing.T) {
 	tilt := 0
 	azimuth := 180
 	q := Params{
-		Adm:      "101010100",
-		Range:    "cn",
-		City:     "101010100",
-		Interval: 15,
-		Tilt:     &tilt,
-		Azimuth:  &azimuth,
-		Extra:    "weather,poa",
+		Adm:        "101010100",
+		Range:      "cn",
+		City:       "101010100",
+		Interval:   15,
+		Tilt:       &tilt,
+		Azimuth:    &azimuth,
+		Extra:      "weather,poa",
+		Project:    "proj-1",
+		Credential: "cred-1",
 	}.Query()
 
 	want := map[string]string{
-		"adm":      "101010100",
-		"range":    "cn",
-		"city":     "101010100",
-		"interval": "15",
-		"tilt":     "0",
-		"azimuth":  "180",
-		"extra":    "weather,poa",
+		"adm":        "101010100",
+		"range":      "cn",
+		"city":       "101010100",
+		"interval":   "15",
+		"tilt":       "0",
+		"azimuth":    "180",
+		"extra":      "weather,poa",
+		"project":    "proj-1",
+		"credential": "cred-1",
 	}
 	for k, w := range want {
 		if got := q.Get(k); got != w {
@@ -93,18 +97,20 @@ func TestParamsSuffixIncludesFamilyParams(t *testing.T) {
 	tilt := 0
 	azimuth := 180
 	got := Params{
-		Lang:      "zh",
-		LocalTime: true,
-		Number:    5,
-		Adm:       "101010100",
-		Range:     "cn",
-		City:      "101010100",
-		Interval:  15,
-		Tilt:      &tilt,
-		Azimuth:   &azimuth,
-		Extra:     "poa",
+		Lang:       "zh",
+		LocalTime:  true,
+		Number:     5,
+		Adm:        "101010100",
+		Range:      "cn",
+		City:       "101010100",
+		Interval:   15,
+		Tilt:       &tilt,
+		Azimuth:    &azimuth,
+		Extra:      "poa",
+		Project:    "proj-1",
+		Credential: "cred-1",
 	}.suffix()
-	want := ":lang=zh:localTime=1:n=5:adm=101010100:range=cn:city=101010100:interval=15:tilt=0:azimuth=180:extra=poa"
+	want := ":lang=zh:localTime=1:n=5:adm=101010100:range=cn:city=101010100:interval=15:tilt=0:azimuth=180:extra=poa:project=proj-1:credential=cred-1"
 	if got != want {
 		t.Errorf("suffix = %q, want %q", got, want)
 	}

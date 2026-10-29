@@ -14,6 +14,7 @@ func TestFamilyPrefixesAreFrozen(t *testing.T) {
 		FamilyTide:       "qwx:tide:",
 		FamilyIndices:    "qwx:indices:",
 		FamilyMinutely:   "qwx:minutely:",
+		FamilyConsole:    "qwx:console:",
 	}
 	for family, w := range want {
 		if string(family) != w {
@@ -29,6 +30,7 @@ func TestFamiliesAreDistinct(t *testing.T) {
 	all := []Family{
 		FamilyWeather, FamilyAirQuality, FamilyAlert,
 		FamilyGeo, FamilyTide, FamilyIndices, FamilyMinutely,
+		FamilyConsole,
 	}
 	for i, a := range all {
 		for j, b := range all {

@@ -50,6 +50,8 @@ const (
 	FamilyStorm Family = "qwx:storm:"
 	// FamilyAstronomy 是天文数据的键前缀根。
 	FamilyAstronomy Family = "qwx:astronomy:"
+	// FamilyConsole 是控制台 API 的键前缀根。
+	FamilyConsole Family = "qwx:console:"
 )
 
 // Key 拼装一个缓存键。

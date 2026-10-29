@@ -14,6 +14,7 @@ package live
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"os"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/console"
 	"github.com/KanoCifer/qwx/geo"
 	"github.com/KanoCifer/qwx/v1/airquality"
 	"github.com/KanoCifer/qwx/v1/alert"
@@ -69,6 +71,7 @@ func TestLive(t *testing.T) {
 	sr := solarradiation.New(c)
 	st := storm.New(c)
 	as := astronomy.New(c)
+	cs := console.New(c)
 
 	t.Run("Current", func(t *testing.T) {
 		got, err := w.Current(ctx, loc, weather.Options{Lang: qwx.LangZH, LocalTime: true})
@@ -174,6 +177,29 @@ func TestLive(t *testing.T) {
 		for _, s := range got.Storms {
 			t.Logf("%s %s active=%s", s.ID, s.Name, s.IsActive)
 		}
+	})
+
+	t.Run("ConsoleFinance", func(t *testing.T) {
+		got, err := cs.Finance(ctx)
+		if err != nil {
+			// 控制台权限要帐号所有者单独开通，没开通时上游回 403。
+			if errors.Is(err, qwx.ErrUnauthorized) {
+				t.Skip("凭据未开通控制台权限")
+			}
+			t.Fatalf("Finance: %v", err)
+		}
+		t.Logf("%s 余额=%v 截止=%s", got.Currency, got.Balance, got.AsOf)
+	})
+
+	t.Run("ConsoleStats", func(t *testing.T) {
+		got, err := cs.Stats(ctx, console.StatsOptions{})
+		if err != nil {
+			if errors.Is(err, qwx.ErrUnauthorized) {
+				t.Skip("凭据未开通控制台权限")
+			}
+			t.Fatalf("Stats: %v", err)
+		}
+		t.Logf("截止=%s，%d 个 API", got.AsOf, len(got.Success))
 	})
 
 	t.Run("Astronomy", func(t *testing.T) {

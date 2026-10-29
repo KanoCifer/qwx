@@ -663,7 +663,58 @@ if err != nil {
 fmt.Println(angle.SolarElevationAngle, angle.SolarAzimuthAngle)
 ```
 
-The date format is `YYYYMMDD`, and the upstream accepts at most 60 days into the future (today included).
+### Console
+
+The console API reports your own account's finance and request volume rather than
+weather data. Credentials have no access by default: the account owner has to
+enable it under "Project management - Credential - Console permissions" in the
+console, otherwise upstream returns 403.
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/console"
+)
+
+c := console.New(base)
+ctx := context.Background()
+
+fin, err := c.Finance(ctx)
+if err != nil {
+	return err
+}
+fmt.Println(fin.Currency, fin.Balance, fin.AsOf)
+
+// Pending bills
+for _, b := range fin.PendingBills {
+	fmt.Println(b.Number, b.Type, b.Status, b.AmountDue, b.DueDate)
+}
+
+// Request volume of the last 24 hours
+stats, err := c.Stats(ctx, console.StatsOptions{})
+if err != nil {
+	return err
+}
+for _, s := range stats.Success {
+	fmt.Println(s.API, s.Hours)
+}
+```
+
+`Project` and `Credential` are mutually exclusive; leaving both empty covers
+every project and credential of the account. Upstream returns a resource plan's
+total request count as a string, so the SDK decodes it into a `json.Number`:
+
+```go
+for _, p := range fin.AvailableResourcePlans {
+	n, _ := p.Requests.Int64()
+	fmt.Println(p.BillNumber, n)
+}
+```
+
+The data is cut off at the previous hour or earlier and may lag the console web
+page by an hour or more — trust the `AsOf` field in the response.
 
 ### Caching
 
@@ -883,12 +934,14 @@ w := weather.New(fakeDoer{})
 | `v7/astronomy` | `Sun` | `GET /v7/astronomy/sun` | `EndpointSun` |
 | `v7/astronomy` | `Moon` | `GET /v7/astronomy/moon` | `EndpointMoon` |
 | `v7/astronomy` | `SolarElevationAngle` | `GET /v7/astronomy/solar-elevation-angle` | `EndpointAngle` |
+| `console` | `Finance` | `GET /finance/v1/summary` | `EndpointFinance` |
+| `console` | `Stats` | `GET /metrics/v1/stats` | `EndpointStats` |
 
 Package layout:
 
 | Package | Contents |
 | --- | --- |
-| `qwx` | Base client, authentication, cache, `Location`, error classification, the request struct shared by both generations, `Refer` |
+| `qwx` | Base client, authentication, cache, `Location`, error classification, the request struct shared by both generations, `Refer`, `MetaData` |
 | `qwx/v1` | Base types shared across new-generation endpoint families (`Metadata`, `Value`) |
 | `qwx/v1/weather` | New-generation weather `/weather/v1/*` |
 | `qwx/v1/airquality` | New-generation air quality `/airquality/v1/*` |
@@ -900,9 +953,10 @@ Package layout:
 | `qwx/v7/storm` | Typhoons `/v7/tropical/*` |
 | `qwx/v7/astronomy` | Astronomy `/v7/astronomy/*` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
+| `qwx/console` | Console `/finance/v1/*`, `/metrics/v1/*` |
 | `qwx/rediscache` | Redis cache implementation (separate module, depends on go-redis) |
 
-One package = one upstream resource family. `geo` is the only exception: its four lookup endpoints share the same place type, and splitting them would leave that type without a home.
+One package = one upstream resource family. There are two exceptions: `geo`'s four lookup endpoints share the same place type, and `console`'s two endpoints live under one upstream documentation page and share one response skeleton — splitting either would leave those types without a home.
 
 `rediscache` is a standalone Go module with its own `go.mod`, not a subpackage in the table above — it provides no endpoints, only a cache implementation, and it is kept out of the core module because it depends on go-redis.
 
