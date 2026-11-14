@@ -27,6 +27,7 @@ func TestMemoryCache(t *testing.T) {
 	if _, ok, _ := c.Get(ctx, "k"); ok {
 		t.Error("expired key should miss")
 	}
+	// 过期条目在命中时顺手删掉，不留在 map 里。
 	if len(c.entries) != 0 {
 		t.Errorf("entries = %d, want 0 after expiry", len(c.entries))
 	}

@@ -13,7 +13,9 @@ import (
 	"strings"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是生活指数接口的调用入口。
@@ -27,9 +29,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("indices: nil base client")
-	}
+	baseclient.Require(base, "indices")
 	return &Client{base: base}
 }
 
@@ -97,12 +97,12 @@ func (c *Client) IndicesMulti(ctx context.Context, loc qwx.Location, types []int
 	typeSeg := indicesTypeSegment(types)
 	p := cachekey.Params{Lang: lang.API}
 	q := p.Query()
-	q.Set("location", loc.Query())
-	q.Set("type", typeSeg)
+	q.Set(upstream.Location, loc.Query())
+	q.Set(upstream.Type, typeSeg)
 
 	var out Result
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/indices/" + strconv.Itoa(days) + "d",
 		Query:    q,
 		Endpoint: Endpoint,

@@ -82,5 +82,4 @@ func (c *MemoryCache) Set(_ context.Context, key string, data []byte, ttl time.D
 	return nil
 }
 
-// 编译期断言。
 var _ Cache = (*MemoryCache)(nil)

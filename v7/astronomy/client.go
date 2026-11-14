@@ -14,7 +14,10 @@ import (
 	"time"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/param"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是天文数据接口的调用入口。
@@ -28,9 +31,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("astronomy: nil base client")
-	}
+	baseclient.Require(base, "astronomy")
 	return &Client{base: base}
 }
 
@@ -53,16 +54,16 @@ func (c *Client) Sun(ctx context.Context, loc qwx.Location, date string) (*SunRe
 	if err := requireIDOrCoord(loc); err != nil {
 		return nil, err
 	}
-	if err := validateDate(date); err != nil {
+	if err := param.ValidateDate(date); err != nil {
 		return nil, err
 	}
 	q := url.Values{}
-	q.Set("location", loc.Query())
-	q.Set("date", date)
+	q.Set(upstream.Location, loc.Query())
+	q.Set(upstream.Date, date)
 
 	var out SunResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/astronomy/sun",
 		Query:    q,
 		Endpoint: EndpointSun,
@@ -94,7 +95,7 @@ func (c *Client) Moon(ctx context.Context, loc qwx.Location, date string, opts O
 	if err := requireIDOrCoord(loc); err != nil {
 		return nil, err
 	}
-	if err := validateDate(date); err != nil {
+	if err := param.ValidateDate(date); err != nil {
 		return nil, err
 	}
 	if err := opts.Lang.Validate(); err != nil {
@@ -102,12 +103,12 @@ func (c *Client) Moon(ctx context.Context, loc qwx.Location, date string, opts O
 	}
 	p := cachekey.Params{Lang: opts.Lang.API}
 	q := p.Query()
-	q.Set("location", loc.Query())
-	q.Set("date", date)
+	q.Set(upstream.Location, loc.Query())
+	q.Set(upstream.Date, date)
 
 	var out MoonResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/astronomy/moon",
 		Query:    q,
 		Endpoint: EndpointMoon,
@@ -146,7 +147,7 @@ func (c *Client) SolarElevationAngle(ctx context.Context, loc qwx.Location, date
 	if err := requireCoord(loc); err != nil {
 		return nil, err
 	}
-	if err := validateDate(date); err != nil {
+	if err := param.ValidateDate(date); err != nil {
 		return nil, err
 	}
 	if err := validateTime(timeStr); err != nil {
@@ -159,15 +160,15 @@ func (c *Client) SolarElevationAngle(ctx context.Context, loc qwx.Location, date
 		return nil, fmt.Errorf("%w: altitude %d must not be negative", qwx.ErrInvalidParameter, alt)
 	}
 	q := url.Values{}
-	q.Set("location", loc.Query())
-	q.Set("date", date)
-	q.Set("time", timeStr)
-	q.Set("tz", tz)
-	q.Set("alt", strconv.Itoa(alt))
+	q.Set(upstream.Location, loc.Query())
+	q.Set(upstream.Date, date)
+	q.Set(upstream.Time, timeStr)
+	q.Set(upstream.Timezone, tz)
+	q.Set(upstream.Altitude, strconv.Itoa(alt))
 
 	var out AngleResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/astronomy/solar-elevation-angle",
 		Query:    q,
 		Endpoint: EndpointAngle,
@@ -226,23 +227,9 @@ func requireCoord(loc qwx.Location) error {
 	return nil
 }
 
-// validateDate 校验日期格式为 yyyyMMdd 且是真实日期。
-//
-// 日期范围（上游最多接受未来 60 天）不在这里判断 —— 那要拿"今天"比，
-// 上游自己会回 400。
-func validateDate(date string) error {
-	if len(date) != 8 || !isDigits(date) {
-		return fmt.Errorf("%w: date %q must be in yyyyMMdd format", qwx.ErrInvalidParameter, date)
-	}
-	if _, err := time.Parse("20060102", date); err != nil {
-		return fmt.Errorf("%w: date %q is not a valid calendar date", qwx.ErrInvalidParameter, date)
-	}
-	return nil
-}
-
 // validateTime 校验时间格式为 HHmm，取值 0000~2359。
 func validateTime(timeStr string) error {
-	if len(timeStr) != 4 || !isDigits(timeStr) {
+	if len(timeStr) != 4 || !param.IsDigits(timeStr) {
 		return fmt.Errorf("%w: time %q must be in HHmm format", qwx.ErrInvalidParameter, timeStr)
 	}
 	if _, err := time.Parse("1504", timeStr); err != nil {
@@ -264,7 +251,7 @@ func validateTimezone(tz string) error {
 	case len(tz) != 4:
 		return fmt.Errorf("%w: tz %q must be in HHmm format, like 0800 or -0530", qwx.ErrInvalidParameter, tz)
 	}
-	if !isDigits(digits) {
+	if !param.IsDigits(digits) {
 		return fmt.Errorf("%w: tz %q must be in HHmm format, like 0800 or -0530", qwx.ErrInvalidParameter, tz)
 	}
 	hours, _ := strconv.Atoi(digits[:2])
@@ -277,14 +264,4 @@ func validateTimezone(tz string) error {
 		return fmt.Errorf("%w: tz %q is out of the UTC offset range [-12:00,+14:00]", qwx.ErrInvalidParameter, tz)
 	}
 	return nil
-}
-
-// isDigits 报告 s 是否全是数字。
-func isDigits(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
 }

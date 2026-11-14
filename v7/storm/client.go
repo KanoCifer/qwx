@@ -15,7 +15,9 @@ import (
 	"strconv"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是台风数据接口的调用入口。
@@ -29,9 +31,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("storm: nil base client")
-	}
+	baseclient.Require(base, "storm")
 	return &Client{base: base}
 }
 
@@ -58,12 +58,12 @@ func (c *Client) List(ctx context.Context, basin string, year int) (*ListResult,
 		return nil, fmt.Errorf("%w: storm year %d must be positive", qwx.ErrInvalidParameter, year)
 	}
 	q := url.Values{}
-	q.Set("basin", basin)
-	q.Set("year", strconv.Itoa(year))
+	q.Set(upstream.Basin, basin)
+	q.Set(upstream.Year, strconv.Itoa(year))
 
 	var out ListResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/tropical/storm-list",
 		Query:    q,
 		Endpoint: EndpointList,
@@ -97,11 +97,11 @@ func (c *Client) Forecast(ctx context.Context, stormID string) (*ForecastResult,
 		return nil, fmt.Errorf("%w: storm forecast requires a storm id", qwx.ErrInvalidParameter)
 	}
 	q := url.Values{}
-	q.Set("stormid", stormID)
+	q.Set(upstream.StormID, stormID)
 
 	var out ForecastResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/tropical/storm-forecast",
 		Query:    q,
 		Endpoint: EndpointForecast,
@@ -135,11 +135,11 @@ func (c *Client) Track(ctx context.Context, stormID string) (*TrackResult, error
 		return nil, fmt.Errorf("%w: storm track requires a storm id", qwx.ErrInvalidParameter)
 	}
 	q := url.Values{}
-	q.Set("stormid", stormID)
+	q.Set(upstream.StormID, stormID)
 
 	var out TrackResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/tropical/storm-track",
 		Query:    q,
 		Endpoint: EndpointTrack,

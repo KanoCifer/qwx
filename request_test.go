@@ -19,9 +19,14 @@ func (d *stubDoer) Do(_ context.Context, req qwx.Request, _ any) error {
 	return nil
 }
 
-func TestClientImplementsDoer(t *testing.T) {
-	// 基础客户端必须能当 Doer 用：端点子包只认这个接口。
-	var _ qwx.Doer = (*qwx.Client)(nil)
+// TestRequestHTTPMethod 留空按 GET 处理。
+func TestRequestHTTPMethod(t *testing.T) {
+	if got := (qwx.Request{}).HTTPMethod(); got != "GET" {
+		t.Errorf("HTTPMethod() = %q, want GET", got)
+	}
+	if got := (qwx.Request{Method: "POST"}).HTTPMethod(); got != "POST" {
+		t.Errorf("HTTPMethod() = %q, want POST", got)
+	}
 }
 
 func TestDoerSeamReceivesRequest(t *testing.T) {

@@ -1,17 +1,16 @@
-package qwx_test
+package qwx
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/KanoCifer/qwx"
-	"github.com/KanoCifer/qwx/internal/testutil"
 )
 
 // captureHandler 收集日志记录，供断言。
@@ -113,11 +112,11 @@ func assertAttrInt(t *testing.T, r slog.Record, key string, want int64) {
 }
 
 func TestLoggerRecordsUpstreamRequest(t *testing.T) {
-	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	fs := newFakeServer(t, `{"code":"200"}`)
 	h := &captureHandler{}
-	c := testutil.NewClient(t, fs, qwx.WithLogger(slog.New(h)))
+	c := fs.client(t, WithLogger(slog.New(h)))
 
-	req := qwx.Request{Path: "/geo/v2/city/lookup", Endpoint: "geo/v2/city/lookup"}
+	req := Request{Path: "/geo/v2/city/lookup", Endpoint: "geo/v2/city/lookup"}
 	if err := c.Do(context.Background(), req, nil); err != nil {
 		t.Fatalf("Do: %v", err)
 	}
@@ -140,14 +139,14 @@ func TestLoggerRecordsUpstreamRequest(t *testing.T) {
 }
 
 func TestLoggerRecordsCacheHitAndMiss(t *testing.T) {
-	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	fs := newFakeServer(t, `{"code":"200"}`)
 	h := &captureHandler{}
-	c := testutil.NewClient(t, fs,
-		qwx.WithLogger(slog.New(h)),
-		qwx.WithCache(qwx.NewMemoryCache()),
+	c := fs.client(t,
+		WithLogger(slog.New(h)),
+		WithCache(NewMemoryCache()),
 	)
 
-	req := qwx.Request{Path: "/geo/v2/city/top", CacheKey: "qwx:geo:topcity", TTL: time.Minute}
+	req := Request{Path: "/geo/v2/city/top", CacheKey: "qwx:geo:topcity", TTL: time.Minute}
 	for i := 0; i < 2; i++ {
 		if err := c.Do(context.Background(), req, nil); err != nil {
 			t.Fatalf("Do: %v", err)
@@ -173,15 +172,15 @@ func TestLoggerRecordsCacheHitAndMiss(t *testing.T) {
 }
 
 func TestLoggerRecordsCacheFailure(t *testing.T) {
-	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	fs := newFakeServer(t, `{"code":"200"}`)
 	h := &captureHandler{}
-	c := testutil.NewClient(t, fs,
-		qwx.WithLogger(slog.New(h)),
-		qwx.WithCache(failingCache{}),
+	c := fs.client(t,
+		WithLogger(slog.New(h)),
+		WithCache(failingCache{}),
 	)
 
 	// 缓存故障不该让请求失败。
-	if err := c.Do(context.Background(), qwx.Request{
+	if err := c.Do(context.Background(), Request{
 		Path:     "/x",
 		CacheKey: "k",
 		TTL:      time.Minute,
@@ -201,15 +200,15 @@ func TestLoggerRecordsCacheFailure(t *testing.T) {
 
 func TestLoggerRecordsUpstreamRejected(t *testing.T) {
 	body := `{"error":{"status":400,"title":"Invalid Parameters","invalidParams":["location"]}}`
-	fs := testutil.NewFakeServer(t, body)
-	fs.Handler = func(w http.ResponseWriter, r *http.Request) {
+	fs := newFakeServer(t, body)
+	fs.handler = func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(body))
 	}
 	h := &captureHandler{}
-	c := testutil.NewClient(t, fs, qwx.WithLogger(slog.New(h)))
+	c := fs.client(t, WithLogger(slog.New(h)))
 
-	if err := c.Do(context.Background(), qwx.Request{Path: "/x", Endpoint: "weather/v1/current"}, nil); err == nil {
+	if err := c.Do(context.Background(), Request{Path: "/x", Endpoint: "weather/v1/current"}, nil); err == nil {
 		t.Fatal("expected error")
 	}
 
@@ -229,15 +228,15 @@ func TestLoggerRecordsUpstreamRejected(t *testing.T) {
 
 func TestLoggerRecordsUpstreamServerError(t *testing.T) {
 	body := `{"error":{"status":500,"title":"Internal Server Error"}}`
-	fs := testutil.NewFakeServer(t, body)
-	fs.Handler = func(w http.ResponseWriter, r *http.Request) {
+	fs := newFakeServer(t, body)
+	fs.handler = func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(body))
 	}
 	h := &captureHandler{}
-	c := testutil.NewClient(t, fs, qwx.WithLogger(slog.New(h)))
+	c := fs.client(t, WithLogger(slog.New(h)))
 
-	if err := c.Do(context.Background(), qwx.Request{Path: "/x"}, nil); err == nil {
+	if err := c.Do(context.Background(), Request{Path: "/x"}, nil); err == nil {
 		t.Fatal("expected error")
 	}
 
@@ -266,12 +265,12 @@ func TestLoggerRecordsUpstreamServerError(t *testing.T) {
 }
 
 func TestLoggerRecordsDecodeFailure(t *testing.T) {
-	fs := testutil.NewFakeServer(t, `not json`)
+	fs := newFakeServer(t, "not json")
 	h := &captureHandler{}
-	c := testutil.NewClient(t, fs, qwx.WithLogger(slog.New(h)))
+	c := fs.client(t, WithLogger(slog.New(h)))
 
 	var out map[string]any
-	if err := c.Do(context.Background(), qwx.Request{Path: "/x"}, &out); err == nil {
+	if err := c.Do(context.Background(), Request{Path: "/x"}, &out); err == nil {
 		t.Fatal("expected error")
 	}
 
@@ -287,18 +286,18 @@ func TestLoggerRecordsDecodeFailure(t *testing.T) {
 func TestLoggerDoesNotLeakCredentials(t *testing.T) {
 	// 凭据在请求头上，不该出现在任何日志文本里。
 	const secret = "super-secret-api-key"
-	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
+	fs := newFakeServer(t, `{"code":"200"}`)
 	h := &captureHandler{}
 
-	auth, err := qwx.NewAPIKeyAuth(secret)
+	auth, err := NewAPIKeyAuth(secret)
 	if err != nil {
 		t.Fatalf("NewAPIKeyAuth: %v", err)
 	}
-	c, err := qwx.NewClient(auth, fs.URL, qwx.WithLogger(slog.New(h)))
+	c, err := NewClient(auth, fs.URL, WithLogger(slog.New(h)))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	if err := c.Do(context.Background(), qwx.Request{Path: "/x", CacheKey: "k", TTL: time.Minute}, nil); err != nil {
+	if err := c.Do(context.Background(), Request{Path: "/x", CacheKey: "k", TTL: time.Minute}, nil); err != nil {
 		t.Fatalf("Do: %v", err)
 	}
 
@@ -308,10 +307,40 @@ func TestLoggerDoesNotLeakCredentials(t *testing.T) {
 }
 
 func TestLoggerNilIsIgnored(t *testing.T) {
-	fs := testutil.NewFakeServer(t, `{"code":"200"}`)
-	c := testutil.NewClient(t, fs, qwx.WithLogger(nil))
-	if err := c.Do(context.Background(), qwx.Request{Path: "/x"}, nil); err != nil {
+	fs := newFakeServer(t, `{"code":"200"}`)
+	c := fs.client(t, WithLogger(nil))
+	if err := c.Do(context.Background(), Request{Path: "/x"}, nil); err != nil {
 		t.Fatalf("Do: %v", err)
+	}
+}
+
+// TestDefaultLoggerIsSilent 不注入 logger 时一个字节都不该输出。
+//
+// SDK 不替用户决定日志去向：默认静默，级别由注入的 handler 决定。
+func TestDefaultLoggerIsSilent(t *testing.T) {
+	fs := newFakeServer(t, `{"code":"200"}`)
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Pipe: %v", err)
+	}
+	orig := os.Stderr
+	os.Stderr = w
+	restore := func() { os.Stderr = orig }
+	c := fs.client(t)
+	if err := c.Do(context.Background(), Request{Path: "/x"}, nil); err != nil {
+		restore()
+		t.Fatalf("Do: %v", err)
+	}
+	_ = w.Close()
+	restore()
+
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if len(out) > 0 {
+		t.Errorf("默认 logger 有输出：%q", out)
 	}
 }
 
@@ -319,11 +348,11 @@ func TestLoggerSanitizesErrorText(t *testing.T) {
 	// 传输层错误是 *url.Error，文本里内嵌完整 URL。查询参数是用户输入，
 	// 不该跟着进日志；路径要留着，否则错误没法定位。
 	h := &captureHandler{}
-	auth, err := qwx.NewAPIKeyAuth("k")
+	auth, err := NewAPIKeyAuth("k")
 	if err != nil {
 		t.Fatalf("NewAPIKeyAuth: %v", err)
 	}
-	c, err := qwx.NewClient(auth, "127.0.0.1:1", qwx.WithLogger(slog.New(h)))
+	c, err := NewClient(auth, "127.0.0.1:1", WithLogger(slog.New(h)))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -332,7 +361,7 @@ func TestLoggerSanitizesErrorText(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	req := qwx.Request{
+	req := Request{
 		Path:  "/geo/v2/city/lookup",
 		Query: url.Values{"location": {"杭州"}},
 	}

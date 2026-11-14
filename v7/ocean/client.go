@@ -12,6 +12,10 @@ import (
 	"net/url"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
+	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/param"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是潮汐接口的调用入口。
@@ -25,9 +29,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("ocean: nil base client")
-	}
+	baseclient.Require(base, "ocean")
 	return &Client{base: base}
 }
 
@@ -38,7 +40,8 @@ func New(base qwx.Doer) *Client {
 // location 是潮汐站 ID（如 "P2352"），不是坐标、不是 LocationID。
 // 用 geo 包的 LookupPOI 配 POITSTA 可以检索到本站点。
 //
-// date 是潮汐站当地日期，格式 "YYYYMMDD"。
+// date 是潮汐站当地日期，格式 "yyyyMMdd"。客户端校验格式与日历合法性，
+// 非法日期返回 [qwx.ErrInvalidParameter]，不打上游。
 //
 // **日期必须是潮汐站当地的当天**：潮汐窗口的下界是当地当天，
 // 用 UTC 日期会在北京时间 00:00–08:00 要到"昨天"，上游会回 400。
@@ -53,37 +56,24 @@ func (c *Client) Tide(ctx context.Context, stationID, date string) (*Result, err
 	if stationID == "" {
 		return nil, fmt.Errorf("%w: empty tide station ID", qwx.ErrInvalidParameter)
 	}
-	if err := validateDate(date); err != nil {
+	if err := param.ValidateDate(date); err != nil {
 		return nil, err
 	}
 	q := url.Values{}
-	q.Set("location", stationID)
-	q.Set("date", date)
+	q.Set(upstream.Location, stationID)
+	q.Set(upstream.Date, date)
 
 	var out Result
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/ocean/tide",
 		Query:    q,
 		Endpoint: Endpoint,
-		CacheKey: "qwx:tide:" + stationID + ":" + date,
+		CacheKey: cachekey.New(cachekey.FamilyTide).Path(stationID, date).String(),
 		TTL:      cacheTTL,
 	}, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
-}
-
-// validateDate 校验日期格式为 YYYYMMDD。
-func validateDate(date string) error {
-	if len(date) != 8 {
-		return fmt.Errorf("%w: date %q must be in YYYYMMDD format", qwx.ErrInvalidParameter, date)
-	}
-	for i := 0; i < len(date); i++ {
-		if date[i] < '0' || date[i] > '9' {
-			return fmt.Errorf("%w: date %q must be in YYYYMMDD format", qwx.ErrInvalidParameter, date)
-		}
-	}
-	return nil
 }

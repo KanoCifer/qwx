@@ -226,9 +226,3 @@ func silentRedis(t *testing.T) string {
 	}()
 	return ln.Addr().String()
 }
-
-func TestCacheImplementsQwxCache(t *testing.T) {
-	// 编译期断言之外的运行时确认：它就是 SDK 认的缓存。
-	var c qwx.Cache = &Cache{}
-	_ = c
-}

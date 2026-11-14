@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是 GeoAPI 的调用入口。
@@ -22,9 +24,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("geo: nil base client")
-	}
+	baseclient.Require(base, "geo")
 	return &Client{base: base}
 }
 
@@ -49,11 +49,11 @@ func (c *Client) LookupCity(ctx context.Context, loc qwx.Location, opts Options)
 	}
 	p := opts.cityParams()
 	q := p.Query()
-	q.Set("location", loc.Query())
+	q.Set(upstream.Location, loc.Query())
 
 	var out CityResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/geo/v2/city/lookup",
 		Query:    q,
 		Endpoint: EndpointCity,
@@ -94,22 +94,20 @@ func cityCacheKey(loc qwx.Location, p cachekey.Params) string {
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointPOI] 覆盖。
 func (c *Client) LookupPOI(ctx context.Context, loc qwx.Location, typ POIType, opts Options) (*POIResult, error) {
-	switch typ {
-	case POIScenic, POICSTA, POITSTA:
-	default:
-		return nil, fmt.Errorf("%w: unsupported POI type %q", qwx.ErrInvalidParameter, typ)
+	if err := typ.Validate(); err != nil {
+		return nil, err
 	}
 	if err := opts.Lang.Validate(); err != nil {
 		return nil, err
 	}
 	p := opts.poiParams()
 	q := p.Query()
-	q.Set("location", loc.Query())
-	q.Set("type", string(typ))
+	q.Set(upstream.Location, loc.Query())
+	q.Set(upstream.Type, string(typ))
 
 	var out POIResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/geo/v2/poi/lookup",
 		Query:    q,
 		Endpoint: EndpointPOI,
@@ -146,10 +144,8 @@ func poiCacheKey(typ POIType, loc qwx.Location, p cachekey.Params) string {
 //
 // 默认 TTL 24 小时，可用 [qwx.WithTTLPolicy] 按 [EndpointPOIRange] 覆盖。
 func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, opts POIRangeOptions) (*RangeResult, error) {
-	switch typ {
-	case POIScenic, POICSTA, POITSTA:
-	default:
-		return nil, fmt.Errorf("%w: unsupported POI type %q", qwx.ErrInvalidParameter, typ)
+	if err := typ.Validate(); err != nil {
+		return nil, err
 	}
 	if !loc.HasCoordinates() {
 		return nil, fmt.Errorf("%w: POI range requires coordinates", qwx.ErrInvalidLocation)
@@ -159,12 +155,12 @@ func (c *Client) POIRange(ctx context.Context, loc qwx.Location, typ POIType, op
 	}
 	p := opts.poiRangeParams()
 	q := p.Query()
-	q.Set("location", loc.Query())
-	q.Set("type", string(typ))
+	q.Set(upstream.Location, loc.Query())
+	q.Set(upstream.Type, string(typ))
 
 	var out RangeResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/geo/v2/poi/range",
 		Query:    q,
 		Endpoint: EndpointPOIRange,
@@ -203,7 +199,7 @@ func (c *Client) TopCities(ctx context.Context, opts Options) (*TopCityResult, e
 	p := opts.topParams()
 	var out TopCityResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/geo/v2/city/top",
 		Query:    p.Query(),
 		Endpoint: EndpointTopCities,

@@ -58,10 +58,12 @@ type Options struct {
 func (o Options) params() cachekey.Params {
 	return cachekey.Params{
 		LocalTime: o.LocalTime,
-		Interval:  o.Interval,
-		Tilt:      o.Tilt,
-		Azimuth:   o.Azimuth,
-		Extra:     o.Extra,
+		Solar: cachekey.SolarParams{
+			Interval: o.Interval,
+			Tilt:     o.Tilt,
+			Azimuth:  o.Azimuth,
+			Extra:    o.Extra,
+		},
 	}
 }
 

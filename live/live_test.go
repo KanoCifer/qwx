@@ -17,7 +17,6 @@ import (
 	"errors"
 	"net/url"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -170,18 +169,20 @@ func TestLive(t *testing.T) {
 
 	t.Run("SolarRadiationHoursUpperBound", func(t *testing.T) {
 		// 直接打上游，绕过 SDK 的客户端校验，探上游真实的上限。
-		// hours=72 是官方文档页写的上限，hours=73 应当被上游拒绝。
-		for _, hours := range []int{72, 73} {
-			var out map[string]any
-			req := qwx.Request{
-				Method:   "GET",
-				Path:     "/solarradiation/v1/forecast/39.92/116.41",
-				Query:    url.Values{"hours": []string{strconv.Itoa(hours)}},
-				Endpoint: solarradiation.Endpoint,
-			}
-			err := c.Do(ctx, req, &out)
-			t.Logf("hours=%d err=%v", hours, err)
+		// hours=72 是官方文档页写的上限，上游要收下；73 应当被上游拒绝。
+		var out map[string]any
+		req := qwx.Request{
+			Method:   qwx.MethodGet,
+			Path:     "/solarradiation/v1/forecast/39.92/116.41",
+			Query:    url.Values{"hours": []string{"72"}},
+			Endpoint: solarradiation.Endpoint,
 		}
+		if err := c.Do(ctx, req, &out); err != nil {
+			t.Fatalf("hours=72 should be accepted: %v", err)
+		}
+		req.Query = url.Values{"hours": []string{"73"}}
+		err := c.Do(ctx, req, &out)
+		t.Logf("hours=73 err=%v", err)
 	})
 
 	t.Run("StormList", func(t *testing.T) {

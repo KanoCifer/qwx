@@ -9,10 +9,12 @@ package historical
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/param"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是历史天气接口的调用入口。
@@ -26,9 +28,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("historical: nil base client")
-	}
+	baseclient.Require(base, "historical")
 	return &Client{base: base}
 }
 
@@ -55,7 +55,7 @@ func (c *Client) Weather(ctx context.Context, loc qwx.Location, date string, opt
 	if loc.ID == "" {
 		return nil, fmt.Errorf("%w: historical weather requires a LocationID", qwx.ErrInvalidLocation)
 	}
-	if err := validateDate(date); err != nil {
+	if err := param.ValidateDate(date); err != nil {
 		return nil, err
 	}
 	if err := opts.Lang.Validate(); err != nil {
@@ -63,12 +63,12 @@ func (c *Client) Weather(ctx context.Context, loc qwx.Location, date string, opt
 	}
 	p := cachekey.Params{Lang: opts.Lang.API}
 	q := p.Query()
-	q.Set("location", loc.ID)
-	q.Set("date", date)
+	q.Set(upstream.Location, loc.ID)
+	q.Set(upstream.Date, date)
 
 	var out Result
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/v7/historical/weather",
 		Query:    q,
 		Endpoint: Endpoint,
@@ -89,28 +89,4 @@ func weatherCacheKey(id, date string, p cachekey.Params) string {
 		Path("weather", id, date).
 		Params(p).
 		String()
-}
-
-// validateDate 校验日期格式为 yyyyMMdd 且是真实日期。
-//
-// 日期范围（上游只给最近 10 天、不含今天）不在这里判断 —— 那要拿"今天"比，
-// 上游自己会回 400。
-func validateDate(date string) error {
-	if len(date) != 8 || !isDigits(date) {
-		return fmt.Errorf("%w: date %q must be in yyyyMMdd format", qwx.ErrInvalidParameter, date)
-	}
-	if _, err := time.Parse("20060102", date); err != nil {
-		return fmt.Errorf("%w: date %q is not a valid calendar date", qwx.ErrInvalidParameter, date)
-	}
-	return nil
-}
-
-// isDigits 报告 s 是否全是数字。
-func isDigits(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
 }

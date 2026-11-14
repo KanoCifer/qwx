@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
 )
 
@@ -22,9 +23,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("alert: nil base client")
-	}
+	baseclient.Require(base, "alert")
 	return &Client{base: base}
 }
 
@@ -45,10 +44,10 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
-	p := params(opts)
+	p := cachekey.V1Params(opts.Lang.API, opts.LocalTime)
 	var out Result
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/weatheralert/v1/current/" + lat + "/" + lon,
 		Query:    p.Query(),
 		Endpoint: Endpoint,

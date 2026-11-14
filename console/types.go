@@ -186,5 +186,10 @@ type StatsOptions struct {
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
 func (o StatsOptions) params() cachekey.Params {
-	return cachekey.Params{Project: o.Project, Credential: o.Credential}
+	return cachekey.Params{
+		Console: cachekey.ConsoleParams{
+			Project:    o.Project,
+			Credential: o.Credential,
+		},
+	}
 }

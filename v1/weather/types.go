@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/KanoCifer/qwx"
-	"github.com/KanoCifer/qwx/internal/cachekey"
 	v1 "github.com/KanoCifer/qwx/v1"
 )
 
@@ -39,13 +38,6 @@ const (
 // 它是 [github.com/KanoCifer/qwx/v1.Options] 的别名：天气与预警两个端点族
 // 接受同一组可选参数，类型放在代际共享包里。
 type Options = v1.Options
-
-// params 是影响结果的查询参数。
-//
-// 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
-func params(o Options) cachekey.Params {
-	return cachekey.Params{Lang: o.Lang.API, LocalTime: o.LocalTime}
-}
 
 // Condition 是天气现象。
 type Condition struct {

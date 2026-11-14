@@ -17,6 +17,7 @@ import (
 
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/geo"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/v1/airquality"
 	"github.com/KanoCifer/qwx/v1/alert"
 	"github.com/KanoCifer/qwx/v1/weather"
@@ -66,9 +67,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("quick: nil base client")
-	}
+	baseclient.Require(base, "quick")
 	return &Client{
 		geo:        geo.New(base),
 		weather:    weather.New(base),
@@ -127,15 +126,15 @@ func (c *Client) Query(ctx context.Context, loc any, opts Options) (*Report, err
 		}
 		switch r.part {
 		case PartCurrent:
-			report.Current, _ = r.value.(*CurrentWeather)
+			report.Current = r.current
 		case PartHourly:
-			report.Hourly, _ = r.value.(*HourlyForecast)
+			report.Hourly = r.hourly
 		case PartDaily:
-			report.Daily, _ = r.value.(*DailyForecast)
+			report.Daily = r.daily
 		case PartAirQuality:
-			report.AirQuality, _ = r.value.(*AirQuality)
+			report.AirQuality = r.airQuality
 		case PartAlerts:
-			report.Alerts, _ = r.value.(*AlertResult)
+			report.Alerts = r.alerts
 		}
 	}
 
@@ -150,11 +149,18 @@ func (c *Client) Query(ctx context.Context, loc any, opts Options) (*Report, err
 }
 
 // partResult 是某一块数据的取回结果。
+//
+// 每块数据有自己的字段：早先用 any 装结果再断言类型，断言失败的错误被
+// 丢掉，报告里会少一块数据却查不出原因。
 type partResult struct {
-	part     Part
-	endpoint qwx.Endpoint
-	value    any
-	err      error
+	part       Part
+	endpoint   qwx.Endpoint
+	err        error
+	current    *CurrentWeather
+	hourly     *HourlyForecast
+	daily      *DailyForecast
+	airQuality *AirQuality
+	alerts     *AlertResult
 }
 
 // fetchAll 并发取回各块数据。
@@ -168,8 +174,7 @@ func (c *Client) fetchAll(ctx context.Context, parts []Part, loc qwx.Location, h
 		wg.Add(1)
 		go func(i int, p Part) {
 			defer wg.Done()
-			v, ep, err := c.fetchPart(ctx, p, loc, hours, days, opts)
-			results[i] = partResult{part: p, endpoint: ep, value: v, err: err}
+			results[i] = c.fetchPart(ctx, p, loc, hours, days, opts)
 		}(i, p)
 	}
 	wg.Wait()
@@ -177,41 +182,41 @@ func (c *Client) fetchAll(ctx context.Context, parts []Part, loc qwx.Location, h
 }
 
 // fetchPart 取回一块数据。
-func (c *Client) fetchPart(ctx context.Context, p Part, loc qwx.Location, hours, days int, opts Options) (any, qwx.Endpoint, error) {
+func (c *Client) fetchPart(ctx context.Context, p Part, loc qwx.Location, hours, days int, opts Options) partResult {
 	weatherOpts := weather.Options{Lang: opts.Lang, LocalTime: opts.LocalTime}
 	switch p {
 	case PartCurrent:
 		v, err := c.weather.Current(ctx, loc, weatherOpts)
 		if err != nil {
-			return nil, weather.EndpointCurrent, err
+			return partResult{part: p, endpoint: weather.EndpointCurrent, err: err}
 		}
-		return v, weather.EndpointCurrent, nil
+		return partResult{part: p, endpoint: weather.EndpointCurrent, current: v}
 	case PartHourly:
 		v, err := c.weather.Hourly(ctx, loc, hours, weatherOpts)
 		if err != nil {
-			return nil, weather.EndpointHourly, err
+			return partResult{part: p, endpoint: weather.EndpointHourly, err: err}
 		}
-		return v, weather.EndpointHourly, nil
+		return partResult{part: p, endpoint: weather.EndpointHourly, hourly: v}
 	case PartDaily:
 		v, err := c.weather.Daily(ctx, loc, days, weatherOpts)
 		if err != nil {
-			return nil, weather.EndpointDaily, err
+			return partResult{part: p, endpoint: weather.EndpointDaily, err: err}
 		}
-		return v, weather.EndpointDaily, nil
+		return partResult{part: p, endpoint: weather.EndpointDaily, daily: v}
 	case PartAirQuality:
 		v, err := c.airquality.Current(ctx, loc, airquality.Options{Lang: opts.Lang})
 		if err != nil {
-			return nil, airquality.EndpointCurrent, err
+			return partResult{part: p, endpoint: airquality.EndpointCurrent, err: err}
 		}
-		return v, airquality.EndpointCurrent, nil
+		return partResult{part: p, endpoint: airquality.EndpointCurrent, airQuality: v}
 	case PartAlerts:
 		v, err := c.alert.Current(ctx, loc, alert.Options{Lang: opts.Lang, LocalTime: opts.LocalTime})
 		if err != nil {
-			return nil, alert.Endpoint, err
+			return partResult{part: p, endpoint: alert.Endpoint, err: err}
 		}
-		return v, alert.Endpoint, nil
+		return partResult{part: p, endpoint: alert.Endpoint, alerts: v}
 	default:
-		return nil, "", fmt.Errorf("%w: unknown part %q", qwx.ErrInvalidParameter, p)
+		return partResult{part: p, err: fmt.Errorf("%w: unknown part %q", qwx.ErrInvalidParameter, p)}
 	}
 }
 

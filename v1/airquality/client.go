@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
 )
 
@@ -22,9 +23,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("airquality: nil base client")
-	}
+	baseclient.Require(base, "airquality")
 	return &Client{base: base}
 }
 
@@ -48,7 +47,7 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	p := opts.params()
 	var out Current
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/airquality/v1/current/" + lat + "/" + lon,
 		Query:    p.Query(),
 		Endpoint: EndpointCurrent,
@@ -90,7 +89,7 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, opts Options) (*Da
 	p := opts.params()
 	var out DailyForecast
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/airquality/v1/daily/" + lat + "/" + lon,
 		Query:    p.Query(),
 		Endpoint: EndpointDaily,
@@ -132,7 +131,7 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, opts Options) (*H
 	p := opts.params()
 	var out HourlyForecast
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/airquality/v1/hourly/" + lat + "/" + lon,
 		Query:    p.Query(),
 		Endpoint: EndpointHourly,
@@ -181,7 +180,7 @@ func (c *Client) Station(ctx context.Context, stationID string, opts Options) (*
 	p := opts.params()
 	var out StationData
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/airquality/v1/stations/" + stationID,
 		Query:    p.Query(),
 		Endpoint: EndpointStation,

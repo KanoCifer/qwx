@@ -51,6 +51,9 @@ func WithHTTPClient(hc *http.Client) Option {
 }
 
 // WithAuth 设置认证方式。
+//
+// Deprecated: 认证方式是 [NewClient] 的第一个参数，这里再设会覆盖它，
+// 形成两个真源。新代码直接把它传给 [NewClient]。
 func WithAuth(a Auth) Option {
 	return func(c *Client) {
 		if a != nil {
@@ -87,6 +90,9 @@ func WithTTLPolicy(policy TTLPolicy) Option {
 }
 
 // WithClock 注入时钟，供测试断言 JWT 的 iat/exp。
+//
+// Deprecated: 当前版本没有用到这个时钟 —— [JWTAuth] 有自己的时钟，
+// 缓存也有自己的。留着是为了不改动已有的调用方。
 func WithClock(now func() time.Time) Option {
 	return func(c *Client) {
 		if now != nil {
@@ -276,14 +282,6 @@ func (c *Client) doWithRetry(ctx context.Context, req Request, httpReq *http.Req
 	var err error
 
 	for i := 0; i <= maxRetry; i++ {
-
-		if i > 0 && httpReq.GetBody != nil {
-			body, err := httpReq.GetBody()
-			if err != nil {
-				return nil, fmt.Errorf("retry: rebuild body: %w", err)
-			}
-			httpReq.Body = body
-		}
 		resp, err = c.http.Do(httpReq)
 		if err == nil && resp.StatusCode < 500 && resp.StatusCode != 429 {
 			return resp, nil
@@ -366,11 +364,7 @@ func (c *Client) fetch(ctx context.Context, req Request) ([]byte, error) {
 		u += "?" + req.Query.Encode()
 	}
 
-	method := req.Method
-	if method == "" {
-		method = http.MethodGet
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, method, u, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, req.HTTPMethod(), u, nil)
 	if err != nil {
 		c.logLocalFailure(ctx, req, "build request failed", err)
 		return nil, fmt.Errorf("%w: build request: %v", ErrInvalidConfig, err)

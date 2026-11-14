@@ -50,10 +50,24 @@ func TestTideRejectsBadDate(t *testing.T) {
 	fs := testutil.NewFakeServer(t, "{}")
 	c := ocean.New(testutil.NewClient(t, fs))
 
-	for _, date := range []string{"", "2021-02-06", "2021020", "202102061"} {
+	// 8 位但不是真实日历日（2025 不是闰年）同样要在客户端被挡下。
+	for _, date := range []string{"", "2021-02-06", "2021020", "202102061", "20250229", "20261301"} {
 		if _, err := c.Tide(context.Background(), "P2352", date); err == nil {
 			t.Errorf("date=%q: expected error", date)
 		}
+	}
+	if fs.Hits != 0 {
+		t.Errorf("hits = %d, want 0", fs.Hits)
+	}
+}
+
+func TestTideRejectsInvalidCalendarDate(t *testing.T) {
+	fs := testutil.NewFakeServer(t, "{}")
+	c := ocean.New(testutil.NewClient(t, fs))
+
+	_, err := c.Tide(context.Background(), "P2352", "20250229")
+	if !errors.Is(err, qwx.ErrInvalidParameter) {
+		t.Fatalf("err = %v, want ErrInvalidParameter", err)
 	}
 	if fs.Hits != 0 {
 		t.Errorf("hits = %d, want 0", fs.Hits)

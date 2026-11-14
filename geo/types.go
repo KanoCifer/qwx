@@ -1,6 +1,7 @@
 package geo
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -51,17 +52,29 @@ type Options struct {
 //
 // 同一份参数既生成上游查询串，也生成缓存键后缀 —— 新增参数时不会漏进键。
 func (o Options) cityParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, Adm: o.Adm, Range: o.Range}
+	return cachekey.Params{
+		Lang:   o.Lang.API,
+		Number: o.Number,
+		Geo:    cachekey.GeoParams{Adm: o.Adm, Range: o.Range},
+	}
 }
 
 // poiParams 是 POI 检索用的查询参数。
 func (o Options) poiParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, City: o.City}
+	return cachekey.Params{
+		Lang:   o.Lang.API,
+		Number: o.Number,
+		Geo:    cachekey.GeoParams{City: o.City},
+	}
 }
 
 // topParams 是热门城市用的查询参数。
 func (o Options) topParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, Range: o.Range}
+	return cachekey.Params{
+		Lang:   o.Lang.API,
+		Number: o.Number,
+		Geo:    cachekey.GeoParams{Range: o.Range},
+	}
 }
 
 // POIRangeOptions 是 POI 范围检索的可选参数。
@@ -79,7 +92,11 @@ type POIRangeOptions struct {
 // 半径用指针传：半径为 0 与"没有半径参数"在键里要分开，而请求里都不
 // 发 radius（上游按默认值处理）。
 func (o POIRangeOptions) poiRangeParams() cachekey.Params {
-	return cachekey.Params{Lang: o.Lang.API, Number: o.Number, Radius: &o.Radius}
+	return cachekey.Params{
+		Lang:   o.Lang.API,
+		Number: o.Number,
+		Geo:    cachekey.GeoParams{Radius: &o.Radius},
+	}
 }
 
 // POIType 是 POI 检索的类型。
@@ -94,6 +111,18 @@ const (
 	// POITSTA 潮汐观测站。
 	POITSTA POIType = "TSTA"
 )
+
+// Validate 报告该类型是否是上游支持的 POI 检索类型。
+//
+// 上游只认 scenic、CSTA、TSTA 三类，其他类型上游直接 400。
+func (t POIType) Validate() error {
+	switch t {
+	case POIScenic, POICSTA, POITSTA:
+		return nil
+	default:
+		return fmt.Errorf("%w: unsupported POI type %q", qwx.ErrInvalidParameter, t)
+	}
+}
 
 // Place 是一个地点条目。
 //

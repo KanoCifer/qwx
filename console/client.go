@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
 )
 
@@ -19,9 +20,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("console: nil base client")
-	}
+	baseclient.Require(base, "console")
 	return &Client{base: base}
 }
 
@@ -42,7 +41,7 @@ func New(base qwx.Doer) *Client {
 func (c *Client) Finance(ctx context.Context) (*FinanceResult, error) {
 	var out FinanceResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/finance/v1/summary",
 		Endpoint: EndpointFinance,
 		CacheKey: cachekey.New(cachekey.FamilyConsole).Path("finance").String(),
@@ -76,7 +75,7 @@ func (c *Client) Stats(ctx context.Context, opts StatsOptions) (*StatsResult, er
 	p := opts.params()
 	var out StatsResult
 	err := c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/metrics/v1/stats",
 		Query:    p.Query(),
 		Endpoint: EndpointStats,

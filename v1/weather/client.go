@@ -9,7 +9,9 @@ import (
 	"strconv"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是天气接口的调用入口。
@@ -23,9 +25,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("weather: nil base client")
-	}
+	baseclient.Require(base, "weather")
 	return &Client{base: base}
 }
 
@@ -50,10 +50,10 @@ func (c *Client) Current(ctx context.Context, loc qwx.Location, opts Options) (*
 	if err != nil {
 		return nil, err
 	}
-	p := params(opts)
+	p := cachekey.V1Params(opts.Lang.API, opts.LocalTime)
 	var out CurrentWeather
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/weather/v1/current/" + lat + "/" + lon,
 		Query:    p.Query(),
 		Endpoint: EndpointCurrent,
@@ -97,13 +97,13 @@ func (c *Client) Hourly(ctx context.Context, loc qwx.Location, hours int, opts O
 	if err != nil {
 		return nil, err
 	}
-	p := params(opts)
+	p := cachekey.V1Params(opts.Lang.API, opts.LocalTime)
 	q := p.Query()
-	q.Set("hours", strconv.Itoa(hours))
+	q.Set(upstream.Hours, strconv.Itoa(hours))
 
 	var out HourlyForecast
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/weather/v1/hourly/" + lat + "/" + lon,
 		Query:    q,
 		Endpoint: EndpointHourly,
@@ -150,13 +150,13 @@ func (c *Client) Daily(ctx context.Context, loc qwx.Location, days int, opts Opt
 	if err != nil {
 		return nil, err
 	}
-	p := params(opts)
+	p := cachekey.V1Params(opts.Lang.API, opts.LocalTime)
 	q := p.Query()
-	q.Set("days", strconv.Itoa(days))
+	q.Set(upstream.Days, strconv.Itoa(days))
 
 	var out DailyForecast
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/weather/v1/daily/" + lat + "/" + lon,
 		Query:    q,
 		Endpoint: EndpointDaily,

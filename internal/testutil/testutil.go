@@ -140,7 +140,6 @@ func (c *RecordingCache) TTL(key string) (time.Duration, bool) {
 	return d, ok
 }
 
-// 编译期断言。
 var (
 	_ qwx.Doer  = (*RecordingDoer)(nil)
 	_ qwx.Cache = (*RecordingCache)(nil)

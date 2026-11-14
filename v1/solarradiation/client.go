@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/internal/baseclient"
 	"github.com/KanoCifer/qwx/internal/cachekey"
+	"github.com/KanoCifer/qwx/internal/upstream"
 )
 
 // Client 是太阳辐射预报接口的调用入口。
@@ -25,9 +27,7 @@ type Client struct {
 //
 // base 不能为 nil，为 nil 时 panic —— 这是编程错误，不是运行时错误。
 func New(base qwx.Doer) *Client {
-	if base == nil {
-		panic("solarradiation: nil base client")
-	}
+	baseclient.Require(base, "solarradiation")
 	return &Client{base: base}
 }
 
@@ -71,11 +71,11 @@ func (c *Client) Forecast(ctx context.Context, loc qwx.Location, hours int, opts
 	}
 	p := opts.params()
 	q := p.Query()
-	q.Set("hours", strconv.Itoa(hours))
+	q.Set(upstream.Hours, strconv.Itoa(hours))
 
 	var out Result
 	err = c.base.Do(ctx, qwx.Request{
-		Method:   "GET",
+		Method:   qwx.MethodGet,
 		Path:     "/solarradiation/v1/forecast/" + lat + "/" + lon,
 		Query:    q,
 		Endpoint: Endpoint,

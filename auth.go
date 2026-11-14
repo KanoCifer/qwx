@@ -218,7 +218,6 @@ func (a *APIKeyAuth) Apply(req *http.Request) error {
 	return nil
 }
 
-// 编译期断言：两种认证方式都实现了 Auth。
 var (
 	_ Auth = (*JWTAuth)(nil)
 	_ Auth = (*APIKeyAuth)(nil)

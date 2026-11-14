@@ -105,5 +105,4 @@ func (c *Cache) key(key string) string {
 	return c.prefix + key
 }
 
-// 编译期断言。
 var _ qwx.Cache = (*Cache)(nil)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/v1/weather"
 )
 
 // Part 标记报告里的一块数据。
@@ -36,14 +37,18 @@ const (
 
 // Options 是快速查询的可选参数。
 //
-// 它把各端点各自的参数收在一处：语言、当地时间对五块数据都生效，
-// 逐时逐日的条数只对预报生效，行政区划与搜索范围只对地名解析生效。
+// 它把各端点各自的参数收在一处：语言对五块数据都生效，当地时间只对
+// 天气与预警生效（上游的空气质量没有当地时间参数），逐时逐日的条数只对
+// 预报生效，行政区划与搜索范围只对地名解析生效。
 type Options struct {
 	// Lang 是语言，如 [qwx.LangZH]。留空用上游默认。
 	Lang qwx.Lang
 	// LocalTime 是否返回查询地点的当地时间。
 	//
 	// 新一代接口默认给 UTC，不传本地时间会整整差 8 小时。
+	//
+	// 只对天气与预警生效：上游的空气质量接口没有当地时间参数，
+	// [Report.AirQuality] 的时间始终是 UTC。
 	LocalTime bool
 	// Hours 是逐小时预报的小时数。0 用 [DefaultHours]。
 	//
@@ -105,15 +110,15 @@ func (o Options) counts() (hours, days int, err error) {
 	if hours == 0 {
 		hours = DefaultHours
 	}
-	if hours < 1 || hours > 240 {
-		return 0, 0, fmt.Errorf("%w: hours %d out of range [1,240]", qwx.ErrInvalidParameter, hours)
+	if hours < 1 || hours > weather.MaxHourlyHours {
+		return 0, 0, fmt.Errorf("%w: hours %d out of range [1,%d]", qwx.ErrInvalidParameter, hours, weather.MaxHourlyHours)
 	}
 	days = o.Days
 	if days == 0 {
 		days = DefaultDays
 	}
-	if days < 1 || days > 10 {
-		return 0, 0, fmt.Errorf("%w: days %d out of range [1,10]", qwx.ErrInvalidParameter, days)
+	if days < 1 || days > weather.MaxDailyDays {
+		return 0, 0, fmt.Errorf("%w: days %d out of range [1,%d]", qwx.ErrInvalidParameter, days, weather.MaxDailyDays)
 	}
 	return hours, days, nil
 }

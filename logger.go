@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"time"
 )
@@ -97,7 +96,7 @@ func (c *Client) logCacheFailure(ctx context.Context, req Request, msg string, e
 // logUpstream 记录一次成功的上游请求。
 func (c *Client) logUpstream(ctx context.Context, req Request, status int, dur time.Duration) {
 	c.log(ctx, slog.LevelInfo, "upstream request", req,
-		slog.String(logFieldMethod, requestMethod(req)),
+		slog.String(logFieldMethod, req.HTTPMethod()),
 		slog.Int(logFieldStatus, status),
 		slog.Int64(logFieldDuration, dur.Milliseconds()),
 	)
@@ -112,7 +111,7 @@ func (c *Client) logUpstreamRejected(ctx context.Context, req Request, ue *Upstr
 		level = slog.LevelError
 	}
 	attrs := []slog.Attr{
-		slog.String(logFieldMethod, requestMethod(req)),
+		slog.String(logFieldMethod, req.HTTPMethod()),
 		slog.Int(logFieldStatus, ue.StatusCode),
 		slog.Int64(logFieldDuration, dur.Milliseconds()),
 	}
@@ -128,7 +127,7 @@ func (c *Client) logUpstreamRejected(ctx context.Context, req Request, ue *Upstr
 // logUpstreamFailure 记录上游不可达：网络错误、超时、响应体读失败。
 func (c *Client) logUpstreamFailure(ctx context.Context, req Request, err error, dur time.Duration) {
 	attrs := []slog.Attr{
-		slog.String(logFieldMethod, requestMethod(req)),
+		slog.String(logFieldMethod, req.HTTPMethod()),
 		slog.Int64(logFieldDuration, dur.Milliseconds()),
 	}
 	if err != nil {
@@ -186,12 +185,4 @@ func sanitizeErrorText(err error) string {
 		}
 	}
 	return err.Error()
-}
-
-// requestMethod 取请求方法，留空按 GET 处理，与实际发出的请求一致。
-func requestMethod(req Request) string {
-	if req.Method == "" {
-		return http.MethodGet
-	}
-	return req.Method
 }

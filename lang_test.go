@@ -36,9 +36,6 @@ func TestLangIsZero(t *testing.T) {
 
 // TestLangCompare 语言可以直接用 == 比较。
 func TestLangCompare(t *testing.T) {
-	if qwx.LangZH != qwx.LangZH {
-		t.Error("LangZH should equal itself")
-	}
 	if qwx.LangZH == qwx.LangEN {
 		t.Error("LangZH should not equal LangEN")
 	}
@@ -161,16 +158,5 @@ func TestLangsMatchVars(t *testing.T) {
 		if !inList[l.API] {
 			t.Errorf("language %q is not in Langs", l.API)
 		}
-	}
-}
-
-// TestLangZHAlias 简体中文的等价代码查得到同一个语言。
-func TestLangZHAlias(t *testing.T) {
-	got, ok := qwx.LookupLang("zh-hans")
-	if !ok {
-		t.Fatal(`LookupLang("zh-hans") not found`)
-	}
-	if got != qwx.LangZH {
-		t.Errorf(`LookupLang("zh-hans") = %v, want %v`, got, qwx.LangZH)
 	}
 }

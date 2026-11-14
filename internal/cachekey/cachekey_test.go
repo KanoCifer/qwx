@@ -2,21 +2,54 @@ package cachekey
 
 import "testing"
 
+// allFamilies 是全部缓存键族。
+//
+// 冻结前缀的测试要覆盖每一个族：漏掉一个族，改了它的前缀就没人拦。
+func allFamilies() []Family {
+	return []Family{
+		FamilyWeather,
+		FamilyAirQuality,
+		FamilyAlert,
+		FamilySolarRadiation,
+		FamilyGeo,
+		FamilyTide,
+		FamilyIndices,
+		FamilyMinutely,
+		FamilyStorm,
+		FamilyAstronomy,
+		FamilyHistorical,
+		FamilyConsole,
+	}
+}
+
 // TestFamilyPrefixesAreFrozen 族前缀在已发布版本里定死。
 //
 // 改了前缀，命中不到旧缓存条目，还要让新旧两代共键。
 func TestFamilyPrefixesAreFrozen(t *testing.T) {
 	want := map[Family]string{
-		FamilyWeather:    "qwx:v1:",
-		FamilyAirQuality: "qwx:aq:v1:",
-		FamilyAlert:      "qwx:alert:v1:",
-		FamilyGeo:        "qwx:geo:",
-		FamilyTide:       "qwx:tide:",
-		FamilyIndices:    "qwx:indices:",
-		FamilyMinutely:   "qwx:minutely:",
-		FamilyConsole:    "qwx:console:",
+		FamilyWeather:        "qwx:v1:",
+		FamilyAirQuality:     "qwx:aq:v1:",
+		FamilyAlert:          "qwx:alert:v1:",
+		FamilySolarRadiation: "qwx:solarradiation:v1:",
+		FamilyGeo:            "qwx:geo:",
+		FamilyTide:           "qwx:tide:",
+		FamilyIndices:        "qwx:indices:",
+		FamilyMinutely:       "qwx:minutely:",
+		FamilyStorm:          "qwx:storm:",
+		FamilyAstronomy:      "qwx:astronomy:",
+		FamilyHistorical:     "qwx:historical:",
+		FamilyConsole:        "qwx:console:",
 	}
-	for family, w := range want {
+	all := allFamilies()
+	if len(all) != len(want) {
+		t.Fatalf("族 = %d, want %d", len(all), len(want))
+	}
+	for _, family := range all {
+		w, ok := want[family]
+		if !ok {
+			t.Errorf("族 %q 没有登记期望前缀", family)
+			continue
+		}
 		if string(family) != w {
 			t.Errorf("family %q = %q, want %q", family, string(family), w)
 		}
@@ -27,11 +60,7 @@ func TestFamilyPrefixesAreFrozen(t *testing.T) {
 //
 // 前缀嵌套会让一个族的键落进另一个族的前缀空间。
 func TestFamiliesAreDistinct(t *testing.T) {
-	all := []Family{
-		FamilyWeather, FamilyAirQuality, FamilyAlert,
-		FamilyGeo, FamilyTide, FamilyIndices, FamilyMinutely,
-		FamilyConsole,
-	}
+	all := allFamilies()
 	for i, a := range all {
 		for j, b := range all {
 			if i == j {
@@ -76,7 +105,7 @@ func TestKeyShape(t *testing.T) {
 		{
 			name: "半径进键",
 			key: New(FamilyGeo).Path("poirange", "scenic", "116.41,39.92").
-				Params(Params{Lang: "zh", Number: 5, Radius: &radius}).String(),
+				Params(Params{Lang: "zh", Number: 5, Geo: GeoParams{Radius: &radius}}).String(),
 			want: "qwx:geo:poirange:scenic:116.41,39.92:lang=zh:n=5:r=5",
 		},
 		{
@@ -125,7 +154,7 @@ func TestParamsChangeKey(t *testing.T) {
 		{"语言", Params{Lang: "zh"}, Params{Lang: "en"}},
 		{"本地时间", Params{LocalTime: true}, Params{}},
 		{"条数", Params{Number: 5}, Params{Number: 10}},
-		{"半径", Params{Radius: &radius}, Params{Radius: &other}},
+		{"半径", Params{Geo: GeoParams{Radius: &radius}}, Params{Geo: GeoParams{Radius: &other}}},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
