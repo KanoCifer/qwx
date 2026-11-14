@@ -911,7 +911,9 @@ Endpoint constants live in their endpoint packages (`weather.EndpointCurrent`, `
 | Typhoon list | `storm.EndpointList` | 24 hours |
 | Typhoon forecast and track | `storm.EndpointForecast`, `storm.EndpointTrack` | 1 hour |
 | Astronomy | `astronomy.EndpointSun` and two others | 24 hours |
+| Historical weather | `historical.Endpoint` | 24 hours |
 | GeoAPI | `geo.EndpointCity` and three others | 24 hours |
+| Console | `console.EndpointFinance`, `console.EndpointStats` | 1 hour |
 
 Use `qwx.TTLPolicyFunc` to adjust durations dynamically by time or load. To bypass the cache for a single request, use `qwx.WithTTLOverride(ctx, 0)`, which takes the highest precedence.
 

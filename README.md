@@ -558,7 +558,7 @@ import (
 o := ocean.New(base)
 ctx := context.Background()
 
-// date 是潮汐站当地日期，格式 YYYYMMDD
+// date 是潮汐站当地日期，格式 yyyyMMdd
 date := time.Now().Format("20060102")
 result, err := o.Tide(ctx, "P2419", date)
 if err != nil {
@@ -907,7 +907,9 @@ base, err := qwx.NewClient(auth, "abcxyz.qweatherapi.com",
 | 台风列表 | `storm.EndpointList` | 24 小时 |
 | 台风预报、路径 | `storm.EndpointForecast`、`storm.EndpointTrack` | 1 小时 |
 | 天文 | `astronomy.EndpointSun` 等三个 | 24 小时 |
+| 历史天气 | `historical.Endpoint` | 24 小时 |
 | GeoAPI | `geo.EndpointCity` 等四个 | 24 小时 |
+| 控制台 | `console.EndpointFinance`、`console.EndpointStats` | 1 小时 |
 
 需要按时间或负载动态调整时用 `qwx.TTLPolicyFunc`。单次请求要临时绕过缓存，用 `qwx.WithTTLOverride(ctx, 0)`，优先级最高。
 
