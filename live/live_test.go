@@ -24,6 +24,7 @@ import (
 	"github.com/KanoCifer/qwx"
 	"github.com/KanoCifer/qwx/console"
 	"github.com/KanoCifer/qwx/geo"
+	"github.com/KanoCifer/qwx/quick"
 	"github.com/KanoCifer/qwx/v1/airquality"
 	"github.com/KanoCifer/qwx/v1/alert"
 	"github.com/KanoCifer/qwx/v1/solarradiation"
@@ -227,6 +228,27 @@ func TestLive(t *testing.T) {
 			t.Logf("%s 最高 %s 最低 %s", got.Daily.Date, got.Daily.TempMax, got.Daily.TempMin)
 		}
 		t.Logf("%d 条逐小时", len(got.Hourly))
+	})
+
+	t.Run("Quick", func(t *testing.T) {
+		qk := quick.New(c)
+		got, err := qk.Query(ctx, "北京", quick.Options{Lang: qwx.LangZH, LocalTime: true})
+		if err != nil {
+			t.Fatalf("Query: %v", err)
+		}
+		if got.Current != nil {
+			t.Logf("%v %v", got.Current.Condition.Text, got.Current.Temperature.Value)
+		}
+		// 宽松模式下失败的块为 nil，取长度前先判空。
+		if got.Hourly != nil {
+			t.Logf("%d 条逐时", len(got.Hourly.Hours))
+		}
+		if got.Daily != nil {
+			t.Logf("%d 条逐日", len(got.Daily.Days))
+		}
+		for _, e := range got.Errors {
+			t.Logf("%s 失败: %v", e.Part, e.Err)
+		}
 	})
 
 	t.Run("Astronomy", func(t *testing.T) {

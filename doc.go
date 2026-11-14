@@ -20,9 +20,11 @@
 //   - `v7/storm` —— 台风
 //   - `v7/astronomy` —— 天文
 //   - `geo` —— GeoAPI（/geo/v2/*）
+//   - `quick` —— 组合层：按位置一次取齐天气、空气质量与预警
 //
 // geo 是唯一的例外：它的四个检索端点共享同一个地点类型，拆开会让该类型
-// 失去归属。
+// 失去归属。quick 也不对应上游资源族：它不新增端点，只把已有端点串成一次
+// 调用。
 //
 // 旧一代与 GeoAPI 的结果带 refer 对象（数据来源与许可），用 [Refer] 表达；
 // 新一代的来源信息在 [github.com/KanoCifer/qwx/v1.Metadata] 的 Attributions 里。

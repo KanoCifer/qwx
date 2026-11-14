@@ -33,6 +33,7 @@ QWeather ships official SDKs for iOS and Android only — there is no official s
   - [⚙️ Client options](#client-options)
   - [📍 Location](#location)
   - [🌐 Multi-language](#multi-language)
+  - [⚡ Quick lookup](#quick-lookup)
   - [🌤️ Weather](#weather)
   - [🌫️ Air quality](#air-quality)
   - [⚠️ Weather alerts](#weather-alerts)
@@ -63,6 +64,7 @@ QWeather ships official SDKs for iOS and Android only — there is no official s
 - **Broad endpoint coverage**: GeoAPI city and POI lookup, weather forecast (the new generation, `/weather/v1/*`), air quality, weather alerts, solar radiation forecast, ocean tides, life indices, minute-level precipitation, typhoons, astronomy, and historical weather
 - **Every live endpoint covered (as of 2026-10-29)**: the upstream documentation site's 28 endpoint pages are all covered while still in service — 25 are wired up, and the 3 left out (`/v7/weather/now`, `/v7/weather/{days}`, `/v7/weather/{hours}`) are deprecated, shut down on 2027-02-01, and each has a new-generation counterpart. The upstream OpenAPI spec also carries 8 legacy v7 paths the documentation site does not publish (`/v7/warning/now`, `/v7/air/now`, `/v7/air/5d`, `/v7/solar-radiation/{hours}`, `/v7/grid-weather/*`, `/v7/historical/air`); they are either shut down or deprecated, and none of them is wired up
 - **One package per resource family**: each package maps to a single upstream resource family, so field shapes and cache keys never bleed across families
+- **One call for everything**: `quick` fetches current weather, hourly and daily forecasts, air quality and alerts for a place name or a coordinate pair
 - **Two authentication modes**: JWT (Ed25519-signed, the official recommendation) and API KEY
 - **Zero dependencies**: the core package uses only the standard library — `go.mod` has no `require`
 - **Pluggable cache**: a `Cache` interface accepts Redis, in-memory, or custom implementations
@@ -311,6 +313,44 @@ lang, ok := qwx.LookupLang("zh-hans") // another code for Simplified Chinese
 ```
 
 A malformed language code returns `ErrInvalidParameter` without hitting the upstream. The solar radiation forecast, tides, typhoons, sunrise/sunset and solar elevation angle endpoints have no language parameter — the upstream does not accept one.
+
+### ⚡ Quick lookup
+
+`quick` chains location resolution, current weather, hourly and daily forecasts, air quality and alerts into one call. The location may be coordinates, a place name or a LocationID:
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/quick"
+)
+
+report, err := quick.New(base).Query(ctx, "北京", quick.Options{
+	Lang:      qwx.LangZH,
+	LocalTime: true,
+})
+if err != nil {
+	return err
+}
+
+if report.Place != nil {
+	fmt.Println(report.Place.DisplayName())
+}
+if report.Current != nil {
+	fmt.Println(report.Current.Condition.Text, report.Current.Temperature.Value)
+}
+for _, e := range report.Errors {
+	fmt.Println("failed:", e.Part, e.Err)
+}
+```
+
+Notes:
+
+- A place name or LocationID is resolved through GeoAPI first (the new generation accepts coordinates only); the first match is used. Narrow ambiguous names with `Options.Adm` or `Options.Range`. Coordinates skip the GeoAPI request entirely.
+- The five parts are fetched concurrently, each cached under its own endpoint constant. The composition layer adds no cache key of its own.
+- Failures are tolerated by default: a part that fails (say, alerts without the permission enabled) is recorded in `report.Errors`, its field stays nil, and the rest is returned. Set `Options.Strict` to fail on the first error instead.
+- `Options.Skip` drops the parts you do not need; `Options.Hours` and `Options.Days` set the forecast ranges.
 
 ### 🌤️ Weather
 
@@ -1016,6 +1056,7 @@ w := weather.New(fakeDoer{})
 | `v7/historical` | `Weather` | `GET /v7/historical/weather` | `Endpoint` |
 | `console` | `Finance` | `GET /finance/v1/summary` | `EndpointFinance` |
 | `console` | `Stats` | `GET /metrics/v1/stats` | `EndpointStats` |
+| `quick` | `Query` | Composes the weather, air quality, alert and GeoAPI endpoints | none (each part caches under its own endpoint constant) |
 
 Package layout:
 
@@ -1035,9 +1076,10 @@ Package layout:
 | `qwx/v7/historical` | Legacy historical weather `/v7/historical/weather` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
 | `qwx/console` | Console `/finance/v1/*`, `/metrics/v1/*` |
+| `qwx/quick` | Composition layer: one call for weather, air quality and alerts |
 | `qwx/rediscache` | Redis cache implementation (separate module, depends on go-redis) |
 
-One package = one upstream resource family. There are two exceptions: `geo`'s four lookup endpoints share the same place type, and `console`'s two endpoints live under one upstream documentation page and share one response skeleton — splitting either would leave those types without a home.
+One package = one upstream resource family. There are two exceptions: `geo`'s four lookup endpoints share the same place type, and `console`'s two endpoints live under one upstream documentation page and share one response skeleton — splitting either would leave those types without a home. `quick` is not a resource family either: it adds no endpoint, it only composes the existing ones.
 
 `rediscache` is a standalone Go module with its own `go.mod`, not a subpackage in the table above — it provides no endpoints, only a cache implementation, and it is kept out of the core module because it depends on go-redis.
 

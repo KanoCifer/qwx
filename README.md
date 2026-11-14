@@ -33,6 +33,7 @@ qwx 是社区维护的 Go SDK，覆盖上游文档中的核心接口族，返回
   - [⚙️ 客户端选项](#客户端选项)
   - [📍 位置](#位置)
   - [🌐 多语言](#多语言)
+  - [⚡ 快速查询](#快速查询)
   - [🌤️ 天气](#天气)
   - [🌫️ 空气质量](#空气质量)
   - [⚠️ 预警](#预警)
@@ -63,6 +64,7 @@ qwx 是社区维护的 Go SDK，覆盖上游文档中的核心接口族，返回
 - **核心接口全覆盖**：GeoAPI 城市与 POI 检索、天气预报（新一代 `/weather/v1/*`）、空气质量、预警、太阳辐射预报、海洋潮汐、生活指数、分钟级降水预报、台风、天文、历史天气
 - **在役端点全覆盖（截至 2026-10-29）**：上游 28 个端点，在役的都已接入。
 - **按资源族分包**：一个包对应一个上游资源族，字段形态与缓存键互不污染
+- **一次调用取全**：`quick` 按地名或坐标一次取齐实时天气、逐时逐日、空气质量与预警
 - **两种认证**：JWT（Ed25519 签名，官方推荐）与 API KEY
 - **零依赖**：核心包只用标准库，`go.mod` 没有 `require`
 - **缓存可插拔**：定义 `Cache` 接口，Redis、内存与自定义实现都可注入
@@ -310,6 +312,44 @@ lang, ok := qwx.LookupLang("zh-hans") // 简体中文的另一个等价代码
 ```
 
 语言代码形态不对时返回 `ErrInvalidParameter`，不打上游。太阳辐射预报、潮汐、台风、日出日落与太阳高度角这几个端点没有语言参数，上游不认。
+
+### ⚡ 快速查询
+
+`quick` 把位置解析、实时天气、逐时逐日、空气质量与预警串成一次调用。位置给经纬度、地名或 LocationID 都行：
+
+```go
+import (
+	"context"
+
+	"github.com/KanoCifer/qwx"
+	"github.com/KanoCifer/qwx/quick"
+)
+
+report, err := quick.New(base).Query(ctx, "北京", quick.Options{
+	Lang:      qwx.LangZH,
+	LocalTime: true,
+})
+if err != nil {
+	return err
+}
+
+if report.Place != nil {
+	fmt.Println(report.Place.DisplayName())
+}
+if report.Current != nil {
+	fmt.Println(report.Current.Condition.Text, report.Current.Temperature.Value)
+}
+for _, e := range report.Errors {
+	fmt.Println("取数失败:", e.Part, e.Err)
+}
+```
+
+几点：
+
+- 位置是地名或 LocationID 时先查 GeoAPI 换坐标（新一代只认坐标），取第一条结果；重名城市用 `Options.Adm` 或 `Options.Range` 限定。位置是坐标时不发 GeoAPI 请求。
+- 五块数据并发取，各块按自己的端点常量缓存，组合层不新增缓存键。
+- 默认宽松：某块失败（比如账号没开通预警权限）记进 `report.Errors`，对应字段为 nil，其余照常返回；`Options.Strict` 改成任一块失败即返回错误。
+- `Options.Skip` 跳过不关心的块，`Options.Hours` / `Options.Days` 调预报范围。
 
 ### 🌤️ 天气
 
@@ -1012,6 +1052,7 @@ w := weather.New(fakeDoer{})
 | `v7/historical` | `Weather` | `GET /v7/historical/weather` | `Endpoint` |
 | `console` | `Finance` | `GET /finance/v1/summary` | `EndpointFinance` |
 | `console` | `Stats` | `GET /metrics/v1/stats` | `EndpointStats` |
+| `quick` | `Query` | 组合调用天气、空气质量、预警与 GeoAPI 端点 | 无（各块按自己的端点常量缓存） |
 
 包结构：
 
@@ -1031,9 +1072,10 @@ w := weather.New(fakeDoer{})
 | `qwx/v7/historical` | 旧一代历史天气 `/v7/historical/weather` |
 | `qwx/geo` | GeoAPI `/geo/v2/*` |
 | `qwx/console` | 控制台 `/finance/v1/*`、`/metrics/v1/*` |
+| `qwx/quick` | 组合层：按位置一次取齐天气、空气质量与预警 |
 | `qwx/rediscache` | Redis 缓存实现（独立模块，依赖 go-redis） |
 
-一个包 = 一个上游资源族。有两个例外：`geo` 的四个检索端点共享同一个地点类型，`console` 的两个端点在上游归在同一页文档下、共享同一套响应骨架 —— 拆开会让这些类型失去归属。
+一个包 = 一个上游资源族。有两个例外：`geo` 的四个检索端点共享同一个地点类型，`console` 的两个端点在上游归在同一页文档下、共享同一套响应骨架 —— 拆开会让这些类型失去归属。`quick` 也不对应上游资源族：它不新增端点，只把已有端点串成一次调用。
 
 `rediscache` 是独立的 Go 模块（自带 `go.mod`），不是上表的子包 —— 它不提供接口，只提供缓存实现，依赖 go-redis 所以不并入核心模块。
 
